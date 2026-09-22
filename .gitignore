@@ -6,3 +6,4 @@ installer/payload/
 installer/Output/
 publish/
 nupkg/
+dist/

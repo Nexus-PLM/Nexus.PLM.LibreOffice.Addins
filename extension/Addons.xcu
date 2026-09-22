@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Addons" oor:package="org.openoffice.Office">
+  <!--
+    Script URL format, which LibreOffice does not document well and fails on with only a KeyError
+    deep inside pythonscript.py:
+
+        vnd.sun.star.script:<oxt file name>|<folder>|<file>.py$<function>?language=Python&location=user:uno_packages
+
+    The first segment is the package name, and pythonscript.py derives that from the LAST element
+    of the installed extension's URL — which is the .oxt's own file name, "NexusPLM.oxt". Omit it
+    and the lookup raises KeyError; the toolbar still appears, and every button fails the moment it
+    is pressed. Renaming the built package therefore breaks every command here.
+  -->
+  <node oor:name="AddonUI">
+
+    <!--
+      One toolbar, in every application that can hold a PLM document. MergeContext lists the
+      document services rather than the applications: text (Writer), spreadsheet (Calc),
+      presentation (Impress), drawing (Draw) and formula (Math).
+
+      The URLs name a Python function in python/nexus_commands.py. "location=user:uno_packages" is
+      how the script provider is told to look inside an installed extension rather than in the
+      user's own macro library.
+    -->
+    <node oor:name="OfficeToolBar">
+      <node oor:name="com.nexusplm.libreoffice.toolbar" oor:op="replace">
+
+        <node oor:name="t01" oor:op="replace">
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-GB">Sign In</value>
+          </prop>
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$sign_in?language=Python&amp;location=user:uno_packages</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument,com.sun.star.sheet.SpreadsheetDocument,com.sun.star.presentation.PresentationDocument,com.sun.star.drawing.DrawingDocument,com.sun.star.formula.FormulaProperties</value>
+          </prop>
+          <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+        </node>
+
+        <node oor:name="t02" oor:op="replace">
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-GB">Open</value>
+          </prop>
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$open_from_plm?language=Python&amp;location=user:uno_packages</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument,com.sun.star.sheet.SpreadsheetDocument,com.sun.star.presentation.PresentationDocument,com.sun.star.drawing.DrawingDocument,com.sun.star.formula.FormulaProperties</value>
+          </prop>
+          <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+        </node>
+
+        <node oor:name="t03" oor:op="replace">
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-GB">Check Out</value>
+          </prop>
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$check_out?language=Python&amp;location=user:uno_packages</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument,com.sun.star.sheet.SpreadsheetDocument,com.sun.star.presentation.PresentationDocument,com.sun.star.drawing.DrawingDocument,com.sun.star.formula.FormulaProperties</value>
+          </prop>
+          <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+        </node>
+
+        <node oor:name="t04" oor:op="replace">
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-GB">Check In</value>
+          </prop>
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$check_in?language=Python&amp;location=user:uno_packages</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument,com.sun.star.sheet.SpreadsheetDocument,com.sun.star.presentation.PresentationDocument,com.sun.star.drawing.DrawingDocument,com.sun.star.formula.FormulaProperties</value>
+          </prop>
+          <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+        </node>
+
+        <node oor:name="t05" oor:op="replace">
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-GB">Properties</value>
+          </prop>
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$properties?language=Python&amp;location=user:uno_packages</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument,com.sun.star.sheet.SpreadsheetDocument,com.sun.star.presentation.PresentationDocument,com.sun.star.drawing.DrawingDocument,com.sun.star.formula.FormulaProperties</value>
+          </prop>
+          <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+        </node>
+
+      </node>
+    </node>
+
+    <!-- The same commands under a Nexus PLM menu, for discoverability and for keyboard users. -->
+    <node oor:name="OfficeMenuBar">
+      <node oor:name="com.nexusplm.libreoffice" oor:op="replace">
+        <prop oor:name="Title" oor:type="xs:string">
+          <value xml:lang="en-GB">Nexus ~PLM</value>
+        </prop>
+        <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+        <prop oor:name="ImageIdentifier" oor:type="xs:string"><value>%origin%/icons/nexus</value></prop>
+
+        <node oor:name="Submenu">
+          <node oor:name="m01" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Sign In...</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$sign_in?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m02" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Open from PLM...</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$open_from_plm?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m03" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
+          </node>
+          <node oor:name="m04" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Check Out</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$check_out?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m05" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Check In...</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$check_in?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m06" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
+          </node>
+          <node oor:name="m07" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Edit Values...</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$edit_values?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m08" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Refresh Values</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$refresh_values?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+          <node oor:name="m09" oor:op="replace">
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Properties...</value></prop>
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$properties?language=Python&amp;location=user:uno_packages</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          </node>
+        </node>
+      </node>
+    </node>
+
+  </node>
+</oor:component-data>

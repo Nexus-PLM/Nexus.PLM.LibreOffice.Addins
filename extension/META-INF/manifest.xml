@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The manifest lives in META-INF/, not at the root of the package. A manifest.xml sitting beside
+  description.xml is simply never read: the extension installs, reports success, and none of its
+  toolbars or scripts appear. Every extension LibreOffice itself ships puts it here.
+-->
+<manifest:manifest xmlns:manifest="http://openoffice.org/2001/manifest">
+
+  <!-- The toolbar and the Nexus PLM menu. -->
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="Addons.xcu"/>
+
+  <!-- The commands themselves. Registering the folder — not each file — is what makes
+       "vnd.sun.star.script:...?language=Python&amp;location=user:uno_packages" resolve to it. -->
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.framework-script"
+                       manifest:full-path="python/"/>
+
+</manifest:manifest>

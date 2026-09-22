@@ -1,0 +1,1 @@
+PLM commands inside LibreOffice: open a document from Nexus PLM, check it out, check it in, and keep its attributes in step with the item.

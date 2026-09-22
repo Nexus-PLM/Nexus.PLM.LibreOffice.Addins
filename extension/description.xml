@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/description/2006"
+             xmlns:d="http://openoffice.org/extensions/description/2006"
+             xmlns:lo="http://libreoffice.org/extensions/description/2011"
+             xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <identifier value="com.nexusplm.libreoffice"/>
+  <version value="0.1.0"/>
+
+  <display-name>
+    <name lang="en-GB">Nexus PLM</name>
+    <name lang="en-US">Nexus PLM</name>
+  </display-name>
+
+  <extension-description>
+    <src xlink:href="description/summary.txt" lang="en-GB"/>
+  </extension-description>
+
+  <publisher>
+    <name xlink:href="https://github.com/Nexus-PLM" lang="en-GB">Nexus PLM</name>
+  </publisher>
+
+  <icon>
+    <default xlink:href="icons/nexus-42.png"/>
+  </icon>
+
+  <!--
+    LibreOffice's own version element, NOT OpenOffice.org-minimal-version. LibreOffice still
+    advertises itself as OpenOffice.org 4.1 for compatibility, so an OOo minimum of "6.0" can never
+    be satisfied by any LibreOffice at all: unopkg refuses the package with "unsatisfied
+    dependencies" and says nothing about which one. Measured against LibreOffice 26.2.
+  -->
+  <dependencies>
+    <lo:LibreOffice-minimal-version value="6.0" d:name="LibreOffice 6.0"/>
+  </dependencies>
+
+  <!-- No platform element: the extension is pure Python and the service it talks to is reached
+       over HTTP on the loopback interface, so nothing here is architecture-specific. That is the
+       practical advantage over the .NET/CLI UNO bridge, which is Windows-only and needs the
+       extension's bitness to match the office installation's. -->
+
+</description>
