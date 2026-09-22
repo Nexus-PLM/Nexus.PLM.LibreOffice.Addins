@@ -8,10 +8,8 @@ An .oxt is a zip. Nothing here needs LibreOffice, so it runs anywhere:
 
 import os
 import shutil
-import struct
 import subprocess
 import sys
-import zlib
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -25,52 +23,34 @@ SOFFICE_DIRS = (
     "/usr/lib/libreoffice/program",
 )
 
-# What LibreOffice asks an extension for. The toolbar uses 16px and 26px — not 32 and 64, which is
-# the Office convention and produces a blurry button here. 42px is the extension manager's own.
-ICON_SIZES = (16, 26, 42)
-
-#: The Nexus accent, as the rest of the product uses it.
-ACCENT = (0x1E, 0x9B, 0xD6)
-
-
-def _png(path, size, rgb):
-    """A square PNG of one colour, written without any imaging library.
-
-    Placeholder art, deliberately: a real icon is a design asset, and inventing one badly is worse
-    than a plain square that is obviously a placeholder.
-    """
-    red, green, blue = rgb
-    # One filter byte (0 = none) then RGB triples, per scanline.
-    row = b"\x00" + bytes((red, green, blue)) * size
-    raw = row * size
-
-    def chunk(tag, payload):
-        return (struct.pack(">I", len(payload)) + tag + payload
-                + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF))
-
-    header = struct.pack(">2I5B", size, size, 8, 2, 0, 0, 0)   # 8-bit, truecolour
-    with open(path, "wb") as handle:
-        handle.write(b"\x89PNG\r\n\x1a\n")
-        handle.write(chunk(b"IHDR", header))
-        handle.write(chunk(b"IDAT", zlib.compress(raw, 9)))
-        handle.write(chunk(b"IEND", b""))
+# The icons are the Word add-in's own, resized: LibreOffice wants 16px and 26px per command
+# (ImageIdentifier "%origin%/icons/<Name>" is a stem, and _16/_26 are appended by LibreOffice),
+# and 42px for the extension manager card. They are checked in; this only complains if one that
+# Addons.xcu names is missing, which is how a renamed icon would otherwise fail silently — the
+# button appears with no image and no error.
+import re
 
 
-def make_icons():
+def check_icons():
     icons = os.path.join(HERE, "icons")
-    os.makedirs(icons, exist_ok=True)
-    for size in ICON_SIZES:
-        target = os.path.join(icons, "nexus-%d.png" % size)
-        if not os.path.exists(target):
-            _png(target, size, ACCENT)
-            print("  made icons/nexus-%d.png" % size)
-
-    # Addons.xcu points at "%origin%/icons/nexus"; LibreOffice appends _16 and _26 itself.
-    for size, suffix in ((16, "_16"), (26, "_26")):
-        target = os.path.join(icons, "nexus%s.png" % suffix)
-        if not os.path.exists(target):
-            shutil.copyfile(os.path.join(icons, "nexus-%d.png" % size), target)
-            print("  made icons/nexus%s.png" % suffix)
+    xcu = open(os.path.join(HERE, "Addons.xcu"), encoding="utf-8").read()
+    missing = []
+    # Two forms name an icon: an ImageIdentifier stem ("icons/New", sizes appended by LibreOffice)
+    # and an Images entry's explicit file ("icons/New_16.png"). Check whichever files each implies.
+    wanted = set()
+    for ref in set(re.findall(r"%origin%/icons/([\w.]+)", xcu)):
+        if ref.endswith(".png"):
+            wanted.add(ref)
+        else:
+            wanted.update("%s_%d.png" % (ref, size) for size in (16, 26))
+    for name in sorted(wanted):
+        if not os.path.exists(os.path.join(icons, name)):
+            missing.append(name)
+    if not os.path.exists(os.path.join(icons, "nexus-42.png")):
+        missing.append("nexus-42.png")
+    if missing:
+        raise SystemExit("icons missing from extension/icons: " + ", ".join(missing))
+    print("  icons: every one Addons.xcu names is present")
 
 
 def pack():
@@ -123,6 +103,6 @@ def install(path):
 
 
 if __name__ == "__main__":
-    make_icons()
+    check_icons()
     package = pack()
     sys.exit(install(package) if "--install" in sys.argv else 0)

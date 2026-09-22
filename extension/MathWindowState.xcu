@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Names our add-on toolbar and makes it visible and docked by default in Math.
+
+  Addons.xcu cannot name a toolbar: its ToolBarItems set has no toolbar-level properties, so an
+  add-on toolbar is listed as "Add-On N" and floats. What names it is this per-module window-state
+  entry — exactly how LibreOffice's own LibreLogo toolbar comes to be listed as "Logo". Without it
+  the toolbar also inherits whatever the user last did to it: closing the floating "Add-On 2" once
+  left it Visible=false, size 0x0, and it never came back.
+-->
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="MathWindowState" oor:package="org.openoffice.Office.UI">
+  <node oor:name="UIElements">
+    <node oor:name="States">
+      <node oor:name="private:resource/toolbar/addon_com.nexusplm.libreoffice.toolbar" oor:op="replace">
+        <prop oor:name="UIName" oor:type="xs:string"><value xml:lang="en-GB">NexusPLM</value></prop>
+        <prop oor:name="Visible" oor:type="xs:boolean"><value>true</value></prop>
+        <prop oor:name="Docked" oor:type="xs:boolean"><value>true</value></prop>
+        <prop oor:name="DockingArea" oor:type="xs:int"><value>0</value></prop>
+        <prop oor:name="Locked" oor:type="xs:boolean"><value>false</value></prop>
+      </node>
+    </node>
+  </node>
+</oor:component-data>

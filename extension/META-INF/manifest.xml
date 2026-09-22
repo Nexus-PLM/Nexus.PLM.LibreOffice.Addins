@@ -10,6 +10,18 @@
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
                        manifest:full-path="Addons.xcu"/>
 
+  <!-- Names the toolbar and shows it docked by default, per application. -->
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="WriterWindowState.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="CalcWindowState.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="ImpressWindowState.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="DrawWindowState.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="MathWindowState.xcu"/>
+
   <!-- The commands themselves. Registering the folder — not each file — is what makes
        "vnd.sun.star.script:...?language=Python&amp;location=user:uno_packages" resolve to it. -->
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.framework-script"

@@ -8,8 +8,8 @@
   <version value="0.1.0"/>
 
   <display-name>
-    <name lang="en-GB">Nexus PLM</name>
-    <name lang="en-US">Nexus PLM</name>
+    <name lang="en-GB">NexusPLM</name>
+    <name lang="en-US">NexusPLM</name>
   </display-name>
 
   <extension-description>
