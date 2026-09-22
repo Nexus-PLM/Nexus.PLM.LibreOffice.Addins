@@ -8,20 +8,17 @@ an office at all.
 import os
 import urllib.parse
 
-# The five document services that can hold a PLM document, and the extension each is saved as.
-# Math has no fields to drive beyond its metadata, but it is a document like any other and gets the
-# same commands.
-SERVICE_EXTENSIONS = (
-    ("com.sun.star.text.TextDocument", ".odt"),
-    ("com.sun.star.sheet.SpreadsheetDocument", ".ods"),
-    ("com.sun.star.presentation.PresentationDocument", ".odp"),
-    ("com.sun.star.drawing.DrawingDocument", ".odg"),
-    ("com.sun.star.formula.FormulaProperties", ".odf"),
-)
-
 #: What this host can open, for the service's browser to filter by. A host declares its own
-#: capabilities and they travel with the request.
+#: capabilities and they travel with the request; the service keeps no list of hosts.
 OPENABLE_EXTENSIONS = ".odt;.ott;.ods;.ots;.odp;.otp;.odg;.otg;.odf;.otf"
+
+#: The add-in's version, reported to About. Kept here rather than read from description.xml so
+#: there is nothing to locate on disk at import time.
+ADDIN_VERSION = "0.1.0"
+
+# com.sun.star.lang.SystemDependent.SYSTEM_WIN32; the window-handle call wants to be told which
+# windowing system's handle is being asked for.
+_SYSTEM_WIN32 = 1
 
 
 def desktop(context):
@@ -84,6 +81,15 @@ def save(document):
         return False
 
 
+def close_without_saving(document):
+    """Closes the document, discarding unsaved edits. Only after the user has said they may go."""
+    try:
+        document.setModified(False)
+        document.close(True)
+    except Exception:
+        pass
+
+
 def open_staged(context, path):
     """Opens a file the service staged, or brings it forward if it is already open.
 
@@ -107,13 +113,18 @@ def open_staged(context, path):
 
 
 def window_handle(document):
-    """The document window's handle, so a service dialog can be parented to it.
+    """The document window's Win32 handle, so a service dialog can be parented to it.
 
-    Zero is a valid answer and means "no parent" — a dialog that is not parented is still shown,
-    just not owned, which is better than refusing the command.
+    Asked for with the windowing system named, which is what the UNO call wants; asked with an
+    empty argument it answers nothing useful. Zero is a valid answer and means "no parent" — a
+    dialog that is not parented is still shown, just not owned, which is better than refusing the
+    command. Unowned is exactly what the first version of this produced: the Open browser appeared
+    behind a maximised Writer window, and looked like nothing had happened.
     """
     try:
-        return int(document.getCurrentController().getFrame().getContainerWindow().getWindowHandle(()))
+        window = document.getCurrentController().getFrame().getContainerWindow()
+        handle = window.getWindowHandle(b"", _SYSTEM_WIN32)
+        return int(handle) if handle else 0
     except Exception:
         return 0
 
@@ -133,3 +144,38 @@ def user_fields(document):
     except Exception:
         pass
     return values
+
+
+def write_user_fields(document, values):
+    """Writes PLM's values into the user-defined properties the document already has.
+
+    Only fields the document already carries are written — a field nobody put in the template is
+    not a field of it. Returns how many were written. The document is marked modified so the
+    change is saved with it.
+    """
+    if not values:
+        return 0
+
+    written = 0
+    try:
+        container = document.getDocumentProperties().getUserDefinedProperties()
+        existing = {p.Name for p in container.getPropertySetInfo().getProperties()}
+        wanted = {k.lower(): v for k, v in values.items()}
+
+        for name in existing:
+            value = wanted.get(name.lower())
+            if value is None:
+                continue
+            try:
+                container.setPropertyValue(name, "" if value is None else str(value))
+                written += 1
+            except Exception:
+                # A typed property (date, number) refuses text it cannot hold. Leaving it alone is
+                # the same decision the closed-file connector makes.
+                pass
+
+        if written:
+            document.setModified(True)
+    except Exception:
+        pass
+    return written
