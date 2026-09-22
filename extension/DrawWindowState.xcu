@@ -18,6 +18,10 @@
         <prop oor:name="Visible" oor:type="xs:boolean"><value>true</value></prop>
         <prop oor:name="Docked" oor:type="xs:boolean"><value>true</value></prop>
         <prop oor:name="DockingArea" oor:type="xs:int"><value>0</value></prop>
+        <!-- Its own row under Standard (row 0) and Formatting (row 1), rather than squeezed onto
+             the end of the Standard row. The x of 0 is the row start; "x,row" is how the
+             shipped toolbars declare theirs (standardbar 0,0; textobjectbar 0,1). -->
+        <prop oor:name="DockPos" oor:type="xs:string"><value>0,2</value></prop>
         <prop oor:name="Locked" oor:type="xs:boolean"><value>false</value></prop>
       </node>
     </node>

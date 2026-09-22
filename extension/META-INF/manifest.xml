@@ -22,6 +22,13 @@
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
                        manifest:full-path="MathWindowState.xcu"/>
 
+  <!-- The stacked toolbar buttons: a popup-menu controller component, and the bindings that
+       make LibreOffice build a dropdown for each command it is registered against. -->
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.uno-component;type=Python"
+                       manifest:full-path="python/nexusplm_controllers.py"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="Controller.xcu"/>
+
   <!-- The commands themselves. Registering the folder — not each file — is what makes
        "vnd.sun.star.script:...?language=Python&amp;location=user:uno_packages" resolve to it. -->
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.framework-script"

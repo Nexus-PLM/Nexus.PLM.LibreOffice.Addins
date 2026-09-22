@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Binds each stacked toolbar button's command to the controller in python/nexusplm_controllers.py.
+  A toolbar item whose command has a controller registered here is handed to that controller when
+  the toolbar is built; without this, the same item is a plain button that dispatches a URL nothing
+  handles. An empty Module means every application.
+
+  Two sets, same six commands, same controller: add-on toolbar items are built through the ToolBar
+  factory, and the Tabbed UI's dropdowns through the PopupMenu factory. The component implements
+  both shapes and answers with the same menu either way.
+-->
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Controller" oor:package="org.openoffice.Office.UI">
+  <node oor:name="Registered">
+
+    <node oor:name="ToolBar">
+      <node oor:name="com.nexusplm.libreoffice.tb.account" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:account</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tb.save" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:save</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tb.tasks" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:tasks</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tb.workflow" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:workflow</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tb.values" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:values</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tb.about" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:about</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+    </node>
+
+    <node oor:name="PopupMenu">
+      <node oor:name="com.nexusplm.libreoffice.account" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:account</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.save" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:save</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.tasks" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:tasks</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.workflow" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:workflow</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.values" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:values</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+      <node oor:name="com.nexusplm.libreoffice.about" oor:op="replace">
+        <prop oor:name="Command"><value>nexusplm:about</value></prop>
+        <prop oor:name="Module"><value/></prop>
+        <prop oor:name="Controller"><value>com.nexusplm.libreoffice.PopupController</value></prop>
+      </node>
+    </node>
+
+  </node>
+</oor:component-data>
