@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- netstandard2.0 serves any local tooling; net8.0 serves the Vault plugin host. -->
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Nexus.PLM.LibreOffice.Templates</RootNamespace>
+    <AssemblyName>Nexus.PLM.LibreOffice.Templates</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- An ODF document is a zip of XML parts, so the framework is enough: no third-party
+         dependency, and the same assembly runs server-side (Vault template-inspector plugin)
+         and client-side (a document LibreOffice does not have open). -->
+    <PackageReference Include="Nexus.PLM.Addin.Sdk.Templates" Version="0.2.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+  </ItemGroup>
+</Project>
