@@ -211,6 +211,66 @@ public class LibreOfficeTemplateConnectorTests
             "an empty value cannot be a number, so the template's own value stands");
     }
 
+    /// <summary>
+    /// The shape the LibreOffice tracking document really has: twelve fields covering every ODF
+    /// value type, filled in the single pass that staging a new document from the template is.
+    /// The pairs above each prove one rule; this proves they hold together, which is what the type
+    /// registered on the server asks of this connector.
+    /// </summary>
+    [Fact]
+    public void TheWholeTrackingDocument_IsFilledInOnePass()
+    {
+        using var doc = OdfDocument.Writer(
+            OdfDocument.UserField("PartNumber", "", "string"),
+            OdfDocument.UserField("Revision", "", "string"),
+            OdfDocument.UserField("Description", "", "string"),
+            OdfDocument.UserField("CreatedBy", "", "string"),
+            OdfDocument.UserField("CreationDate", "2026-01-01T00:00:00", "date"),
+            OdfDocument.UserField("ModifiedBy", "", "string"),
+            OdfDocument.UserField("ModificationDate", "2026-01-01T00:00:00", "date"),
+            OdfDocument.UserField("Department", "", "string"),
+            OdfDocument.UserField("Author", "", "string"),
+            OdfDocument.UserField("ReviewDue", "2026-01-01T00:00:00", "date"),
+            OdfDocument.UserField("Approved", "false", "boolean"),
+            OdfDocument.UserField("Priority", "3", "float"),
+            OdfDocument.UserField("TimeSpent", "PT0H0M0S", "time"));
+
+        var after = WriteThenRead(doc, new Dictionary<string, string>
+        {
+            ["PartNumber"]       = "LTD-00000001-ODT",
+            ["Revision"]         = "A",
+            ["Description"]      = "LibreOffice e2e seed",
+            ["CreatedBy"]        = "admin",
+            ["CreationDate"]     = "2026-09-22",
+            ["ModifiedBy"]       = "admin",
+            ["ModificationDate"] = "2026-09-22",
+            ["Department"]       = "Engineering",
+            ["Author"]           = "Marc",
+            ["ReviewDue"]        = "2026-10-01",
+            ["Approved"]         = "yes",
+            ["Priority"]         = "4.5",
+            ["TimeSpent"]        = "01:30:00",
+        });
+
+        after.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["PartNumber"]       = "LTD-00000001-ODT",
+            ["Revision"]         = "A",
+            ["Description"]      = "LibreOffice e2e seed",
+            ["CreatedBy"]        = "admin",
+            // Each typed field carries the lexical form its type demands, not the text that came in.
+            ["CreationDate"]     = "2026-09-22T00:00:00",
+            ["ModifiedBy"]       = "admin",
+            ["ModificationDate"] = "2026-09-22T00:00:00",
+            ["Department"]       = "Engineering",
+            ["Author"]           = "Marc",
+            ["ReviewDue"]        = "2026-10-01T00:00:00",
+            ["Approved"]         = "true",
+            ["Priority"]         = "4.5",
+            ["TimeSpent"]        = "PT1H30M0S",
+        });
+    }
+
     [Fact]
     public void WritingAShapeKeepsTheAuthorsFormatting()
     {
