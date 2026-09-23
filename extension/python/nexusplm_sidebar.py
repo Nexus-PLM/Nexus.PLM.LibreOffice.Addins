@@ -29,6 +29,7 @@ from com.sun.star.lang import XServiceInfo
 from com.sun.star.ui import XUIElement, XUIElementFactory
 from com.sun.star.ui.UIElementType import TOOLPANEL
 
+from nexusplm import navigator as navigator_rules
 from nexusplm import panel as panel_rules
 from nexusplm.client import Client
 
@@ -46,6 +47,8 @@ _ROW_H = 10
 _GAP = 2
 _LABEL_W = 40
 _BUTTON_H = 14
+#: The navigator tree's heading, and the least height worth giving the tree itself.
+_TREE_MIN_H = 60
 
 # com.sun.star.awt.PosSize.POSSIZE - move and resize in one call.
 _POSSIZE = 15
@@ -82,6 +85,9 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
         self._value_controls = {}
         self._buttons = {}
         self._headline = None
+        self._tree = None
+        self._tree_heading = None
+        self._tree_data = None
         self.window = None
         self._sx = self._sy = 1.0
         self._build(parent)
@@ -97,6 +103,30 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             model.setPropertyValue(key, value)
         control = self.smgr.createInstanceWithContext(
             "com.sun.star.awt.UnoControl%s" % service, self.ctx)
+        control.setModel(model)
+        container.addControl(name, control)
+        return control
+
+    def _tree_control(self, name, container):
+        """The navigator's tree.
+
+        Not built through :meth:`_control`: a tree is not one of the ``UnoControl*`` family, it
+        is ``com.sun.star.awt.tree.TreeControl`` with its own model, and its contents come from a
+        separate ``XTreeDataModel`` rather than from properties. A UNO tree has exactly one root,
+        so ``RootDisplayed`` is off and PLM's several top-level folders hang off an invisible one.
+        """
+        model = self.smgr.createInstanceWithContext(
+            "com.sun.star.awt.tree.TreeControlModel", self.ctx)
+        self._tree_data = self.smgr.createInstanceWithContext(
+            "com.sun.star.awt.tree.MutableTreeDataModel", self.ctx)
+        model.setPropertyValue("DataModel", self._tree_data)
+        model.setPropertyValue("RootDisplayed", False)
+        model.setPropertyValue("ShowsHandles", True)
+        model.setPropertyValue("ShowsRootHandles", True)
+        model.setPropertyValue("Editable", False)
+
+        control = self.smgr.createInstanceWithContext(
+            "com.sun.star.awt.tree.TreeControl", self.ctx)
         control.setModel(model)
         container.addControl(name, control)
         return control
@@ -122,6 +152,10 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
                                    Label=label, Enabled=False)
             button.addActionListener(self)
             self._buttons[command] = button
+
+        self._tree_heading = self._control("FixedText", "tree_heading", container,
+                                           Label="Navigator")
+        self._tree = self._tree_control("tree", container)
 
         container.addWindowListener(self)
         # Laid out through self.window, which every later call also uses, so it has to be set
@@ -182,6 +216,15 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
                 margin, y, width - 2 * margin, button_h, _POSSIZE)
             y += button_h + gap
 
+        # The tree takes whatever height is left below the buttons. The sidebar can be dragged
+        # to any size, so "what is left" is the only honest number; below a floor it would show
+        # one clipped row, which reads as a broken control rather than a short one.
+        y += gap * 2
+        self._tree_heading.setPosSize(margin, y, width - 2 * margin, row, _POSSIZE)
+        y += row + gap
+        tree_h = max(size.Height - y - margin, int(_TREE_MIN_H * self._sy))
+        self._tree.setPosSize(margin, y, width - 2 * margin, tree_h, _POSSIZE)
+
     # -- what it shows -----------------------------------------------------
 
     def refresh(self):
@@ -198,6 +241,57 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
                 button.getModel().setPropertyValue("Enabled", command in allowed)
         except Exception:
             _log("refresh failed\n%s" % traceback.format_exc())
+
+        self._load_tree()
+
+    def _load_tree(self):
+        """Fill the navigator with the folders this user may read.
+
+        Kept apart from the rest of :meth:`refresh` on purpose: the tree is about the vault, not
+        about the document in front of you, so a document that PLM has never seen still gets a
+        navigator, and a navigator that cannot load still leaves the rows above it correct.
+        """
+        if self._tree is None:
+            return
+        try:
+            answer = Client().folders()
+            roots = navigator_rules.tree_from(answer.get("folders"))
+
+            # A fresh data model every load, rather than a new root on the old one. Measured:
+            # setRoot on a model the control is already showing leaves the previous root in
+            # place, so the panel drew the whole vault twice after its second refresh.
+            self._tree_data = self.smgr.createInstanceWithContext(
+                "com.sun.star.awt.tree.MutableTreeDataModel", self.ctx)
+            root = self._tree_data.createNode("Nexus PLM", True)
+            for node in roots:
+                root.appendChild(self._node_for(node))
+            self._tree_data.setRoot(root)
+            self._tree.getModel().setPropertyValue("DataModel", self._tree_data)
+            # Re-asserted after the data model, not only at build time: the control reads it
+            # when it takes a model, and a tree set up before it had one showed its root.
+            self._tree.getModel().setPropertyValue("RootDisplayed", False)
+            try:
+                self._tree.expandNode(root)
+            except Exception:
+                # Nothing to expand when the vault is empty; not worth a log line.
+                pass
+
+            if not roots:
+                self._tree_heading.setText("Navigator — nothing to show")
+            else:
+                self._tree_heading.setText("Navigator")
+        except Exception:
+            # A navigator that cannot load says so in its own heading rather than emptying
+            # itself silently, which is indistinguishable from a vault with no folders.
+            self._tree_heading.setText("Navigator — could not load")
+            _log("tree failed\n%s" % traceback.format_exc())
+
+    def _node_for(self, node):
+        """One folder as a tree node, with its children under it."""
+        made = self._tree_data.createNode(node["label"], bool(node["children"]))
+        for child in node["children"]:
+            made.appendChild(self._node_for(child))
+        return made
 
     def _current(self):
         """(document, state answer, signed-in user) for whatever is in front of the panel."""
