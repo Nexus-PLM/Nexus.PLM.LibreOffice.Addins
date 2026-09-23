@@ -406,17 +406,25 @@ def release(*_args):
 def revise(*_args):
     """Creates the next revision from a released one and opens it."""
     client = _client()
-    context, _document, path, _hwnd = _here()
+    context, document, path, hwnd = _here()
     item_id = _require_item(client, path)
     if item_id is None:
         return
 
-    answer = client.revise(item_id)
+    answer = client.revise(item_id, hwnd)
     if not answer.get("success"):
         return _refused(client, answer, "Revise")
 
+    # The new revision is what the document now is, so the page has to say so. A staged file to
+    # open is the usual case; when PLM has no path for the item there is still a document in front
+    # of the user, and it is the one being revised. Writing only in the first case is why a
+    # revised document went on showing the revision it had left.
     if answer.get("file_path"):
         _open_with_values(context, client, answer, "Revise")
+    else:
+        written = doc.write_user_fields(document, answer.get("attribute_mappings") or {})
+        _log("Revise: no staged file for this item, wrote %d field(s) into the open document"
+             % written)
 
 
 @_command("ChangeOwner")
