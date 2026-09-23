@@ -8,6 +8,8 @@ an office at all.
 import os
 import urllib.parse
 
+from nexusplm import odf
+
 #: What this host can open, for the service's browser to filter by. A host declares its own
 #: capabilities and they travel with the request; the service keeps no list of hosts.
 OPENABLE_EXTENSIONS = ".odt;.ott;.ods;.ots;.odp;.otp;.odg;.otg;.odf;.otf"
@@ -105,6 +107,11 @@ def open_staged(context, path):
     turns into two windows fighting over one path — and the add-in keys what it knows about a
     document on that path.
     """
+    # A file staged from a type's template still carries the template's body, whatever it is named:
+    # an office asked to open that opens an untitled copy and leaves the file alone, so every PLM
+    # command afterwards is about a document with no path. Put right before anything opens it.
+    odf.make_document(path)
+
     url = path_to_url(path)
 
     components = desktop(context).getComponents().createEnumeration()
