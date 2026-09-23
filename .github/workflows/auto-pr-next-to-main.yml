@@ -1,0 +1,67 @@
+name: Auto PR next -> main
+
+on:
+  push:
+    branches: [ "next" ]
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.NEXUS_PLM_PROJECT_TOKEN }}
+        script: |
+          const { data: prs } = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            head: `${context.repo.owner}:next`,
+            base: 'main',
+            state: 'open'
+          });
+          if (prs.length > 0) return;
+
+          // Skip when next has nothing ahead of main (e.g. right after a promote). Without this,
+          // pulls.create throws "No commits between main and next" and the run fails spuriously.
+          const { data: cmp } = await github.rest.repos.compareCommitsWithBasehead({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            basehead: 'main...next'
+          });
+          if (cmp.ahead_by === 0) {
+            core.info('next has no commits ahead of main; nothing to promote.');
+            return;
+          }
+
+          const { data: newPr } = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'PR to main: next -> main',
+            head: 'next',
+            base: 'main',
+            body: 'Automated PR: promote `next` to `main`.\n\nThis PR was opened automatically when `next` received new commits.'
+          });
+
+          // Assign to the user who pushed to next (the person who triggered this workflow).
+          const pusher = context.payload.pusher?.name || context.actor;
+          if (pusher && pusher !== 'github-actions[bot]') {
+            try {
+              await github.rest.issues.checkUserCanBeAssigned({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                assignee: pusher
+              });
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: newPr.number,
+                assignees: [pusher]
+              });
+              core.info(`Assigned to ${pusher}`);
+            } catch(e) {
+              core.info(`${pusher} cannot be assigned to this repo: ${e.message}`);
+            }
+          }

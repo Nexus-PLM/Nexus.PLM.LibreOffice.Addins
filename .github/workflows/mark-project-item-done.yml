@@ -1,0 +1,62 @@
+name: Mark project item Done or Cancelled when PR closes
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  mark-done:
+    # A pull request from a fork gets no secrets, so the board token is empty and this job can
+    # only fail - and that failure would then be reported as an issue on the board. The board is
+    # for the maintainers' own branches; contributions from forks are triaged by hand.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.NEXUS_PLM_PROJECT_TOKEN }}
+        script: |
+          const projectId    = 'PVT_kwDOD-RDF84BUbus';
+          const statusField  = 'PVTSSF_lADOD-RDF84BUbuszhBj2nw';
+          const doneOption   = '98236657';
+          const cancelOption = 'c1f18169';
+
+          const prNodeId = context.payload.pull_request.node_id;
+          const merged   = context.payload.pull_request.merged;
+          const optionId = merged ? doneOption : cancelOption;
+
+          const { node } = await github.graphql(
+            `query($nodeId: ID!) {
+              node(id: $nodeId) {
+                ... on PullRequest {
+                  projectItems(first: 10) {
+                    nodes { id project { id } }
+                  }
+                }
+              }
+            }`,
+            { nodeId: prNodeId }
+          );
+
+          const items = (node?.projectItems?.nodes || [])
+            .filter(item => item.project.id === projectId);
+
+          if (items.length === 0) {
+            core.info('PR not tracked in Nexus Issue Tracker -- skipping.');
+            return;
+          }
+
+          for (const item of items) {
+            await github.graphql(
+              `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                  value: { singleSelectOptionId: $optionId }
+                }) { projectV2Item { id } }
+              }`,
+              { projectId, itemId: item.id, fieldId: statusField, optionId }
+            );
+            core.info('Marked as ' + (merged ? 'Done' : 'Cancelled'));
+          }
