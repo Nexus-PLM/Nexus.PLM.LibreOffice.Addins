@@ -23,6 +23,7 @@ import traceback
 import uno
 import unohelper
 from com.sun.star.awt import XMenuListener, Rectangle
+from com.sun.star.beans import PropertyValue
 from com.sun.star.frame import XPopupMenuController, XStatusListener, XToolbarController
 from com.sun.star.lang import XInitialization, XServiceInfo
 from com.sun.star.util import XUpdatable
@@ -36,43 +37,45 @@ _SYSTEM_WIN32 = 1
 SCRIPT = ("vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$%s"
           "?language=Python&location=user:uno_packages")
 
-#: What each stacked button opens. The command URL is the toolbar item's; the entries are the same
-#: commands as the flat menu, in the same order, so the two never disagree about what exists.
+#: What each stacked button opens: (title, function, icon), or None for a separator. The icon is
+#: the same file the command shows on the toolbar, at 16px, which is the size a menu wants. The
+#: entries are the same commands as the flat menu, in the same order, so the two never disagree
+#: about what exists.
 STACKS = {
     "nexusplm:account": [
-        ("Sign In...", "sign_in"),
-        ("Sign Out", "sign_out"),
+        ("Sign In...", "sign_in", "SignIn"),
+        ("Sign Out", "sign_out", "SignOut"),
     ],
     "nexusplm:save": [
-        ("Save to PLM", "save_to_plm"),
-        ("Save As New Item...", "save_as_new"),
-        ("Save As Existing Item...", "save_as_existing"),
+        ("Save to PLM", "save_to_plm", "Save"),
+        ("Save As New Item...", "save_as_new", "SaveAs"),
+        ("Save As Existing Item...", "save_as_existing", "SaveAsExisting"),
     ],
     "nexusplm:tasks": [
-        ("Check Out", "check_out"),
-        ("Check In...", "check_in"),
+        ("Check Out", "check_out", "CheckOut"),
+        ("Check In...", "check_in", "CheckIn"),
         None,
-        ("Release", "release"),
-        ("Revise", "revise"),
+        ("Release", "release", "Workflow"),
+        ("Revise", "revise", "Reload"),
         None,
-        ("Change Ownership...", "change_owner"),
+        ("Change Ownership...", "change_owner", "Properties"),
     ],
     "nexusplm:workflow": [
-        ("My Worklist...", "worklist"),
-        ("New Workflow...", "new_workflow"),
+        ("My Worklist...", "worklist", "MyWorkList"),
+        ("New Workflow...", "new_workflow", "Workflow"),
     ],
     "nexusplm:values": [
-        ("Edit Values...", "edit_values"),
-        ("Refresh Values", "refresh_values"),
+        ("Edit Values...", "edit_values", "EditValues"),
+        ("Refresh Values", "refresh_values", "Reload"),
         None,
-        ("Reload Document", "reload_document"),
+        ("Reload Document", "reload_document", "Reload"),
     ],
     "nexusplm:about": [
-        ("Current Settings...", "settings"),
-        ("Connection Status", "connection_status"),
+        ("Current Settings...", "settings", "Settings"),
+        ("Connection Status", "connection_status", "Nexus"),
         None,
-        ("Help", "help_site"),
-        ("About NexusPLM...", "about"),
+        ("Help", "help_site", "Help"),
+        ("About NexusPLM...", "about", "Nexus"),
     ],
 }
 
@@ -97,6 +100,9 @@ class PopupController(unohelper.Base, XToolbarController, XPopupMenuController, 
     add-on toolbar items are actually built with, and the popup-menu controller, which the Tabbed
     UI and module toolbars use for dropdowns. Whichever way it is asked, the answer is the same menu.
     """
+
+    #: Icons, once per office session rather than once per menu: name -> XGraphic.
+    _graphics = {}
 
     def __init__(self, context, *args):
         self.context = context
@@ -195,6 +201,47 @@ class PopupController(unohelper.Base, XToolbarController, XPopupMenuController, 
             _log("could not place the menu under the pointer\n" + traceback.format_exc())
         return rect
 
+    # ── icons ─────────────────────────────────────────────────────────────
+
+    def _icons_url(self):
+        """Where this extension's icons live, as a URL.
+
+        Asked of the deployment singleton rather than worked out from ``__file__``: the extension
+        is unpacked into a cache folder whose name changes on every install, and this is the
+        supported way to find one's own files. (``__file__`` would work here — a UNO component is
+        loaded by pythonloader, which sets it — but it does not in ``nexus_commands.py``, which the
+        script provider exec()s, so this is the habit worth keeping.)
+        """
+        provider = self.context.getByName(
+            "/singletons/com.sun.star.deployment.PackageInformationProvider")
+        return provider.getPackageLocation("com.nexusplm.libreoffice") + "/icons"
+
+    def _graphic(self, name):
+        """The icon called ``name``, or ``None`` when it cannot be loaded.
+
+        The 50px file, not the 16px or 26px ones the toolbar uses: LibreOffice is told not to
+        scale a menu image, so the file's own size is the size on screen, and at 16px next to 13pt
+        text an icon reads as a smudge.
+
+        A missing icon costs the entry its picture and nothing else: an exception here would take
+        the whole menu with it.
+        """
+        if name in PopupController._graphics:
+            return PopupController._graphics[name]
+
+        graphic = None
+        try:
+            url = PropertyValue()
+            url.Name, url.Value = "URL", "%s/%s_50.png" % (self._icons_url(), name)
+            provider = self.context.ServiceManager.createInstanceWithContext(
+                "com.sun.star.graphic.GraphicProvider", self.context)
+            graphic = provider.queryGraphic((url,))
+        except Exception:
+            _log("could not load the icon %r\n%s" % (name, traceback.format_exc()))
+
+        PopupController._graphics[name] = graphic
+        return graphic
+
     # ── XPopupMenuController: fill a menu ─────────────────────────────────
 
     def setPopupMenu(self, popup_menu):
@@ -206,9 +253,16 @@ class PopupController(unohelper.Base, XToolbarController, XPopupMenuController, 
                 if entry is None:
                     popup_menu.insertSeparator(-1)
                     continue
-                title, function = entry
+                title, function, icon = entry
                 popup_menu.insertItem(item_id, title, 0, -1)
                 popup_menu.setCommand(item_id, SCRIPT % function)
+
+                graphic = self._graphic(icon)
+                if graphic is not None:
+                    # False: keep the icon at the size it was drawn, rather than letting the menu
+                    # shrink it back to its own default.
+                    popup_menu.setItemImage(item_id, graphic, False)
+
                 item_id += 1
             popup_menu.addMenuListener(self)
         except Exception:
