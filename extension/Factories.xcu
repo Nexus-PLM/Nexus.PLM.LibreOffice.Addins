@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Points the panel's ImplementationURL at the component that builds it.
+
+  A panel whose URL is private:resource/toolpanel/NexusPLMPanelFactory/NexusPLMPanel is looked up
+  here by Type "toolpanel" and Name "NexusPLMPanelFactory". Without this entry the deck still
+  appears in the sidebar rail and opens empty — LibreOffice reports nothing, because as far as it
+  is concerned nobody claimed that resource. An empty Module means every application.
+-->
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Factories" oor:package="org.openoffice.Office.UI">
+  <node oor:name="Registered">
+    <node oor:name="UIElementFactories">
+      <node oor:name="com.nexusplm.libreoffice.panelfactory" oor:op="replace">
+        <prop oor:name="Type" oor:type="xs:string"><value>toolpanel</value></prop>
+        <prop oor:name="Name" oor:type="xs:string"><value>NexusPLMPanelFactory</value></prop>
+        <prop oor:name="Module" oor:type="xs:string"><value/></prop>
+        <prop oor:name="FactoryImplementation" oor:type="xs:string">
+          <value>com.nexusplm.libreoffice.PanelFactory</value>
+        </prop>
+      </node>
+    </node>
+  </node>
+</oor:component-data>

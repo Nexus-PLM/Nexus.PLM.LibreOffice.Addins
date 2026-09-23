@@ -41,6 +41,17 @@ a value PLM owns is shown and locked, one the document owns is editable, and ide
 fields are never editable whatever a mapping says. **Revise** (right) offers the revisions the
 server would actually create, under that type's own revisioning scheme.
 
+### The sidebar
+
+![The Nexus PLM deck docked in Writer](docs/sidebar.png)
+
+A docked **Nexus PLM** deck, in all five applications, showing what PLM knows about the document in
+front of you and offering only the commands its state allows: Check Out is greyed on a document
+already checked out to you, Check In and Save on one that is not yours to save.
+
+It is built from LibreOffice's own controls rather than hosting a web view, and that is a measured
+decision rather than a preference — see *A sidebar panel is not a window* below.
+
 ## How it fits together
 
 ```
@@ -103,9 +114,10 @@ icon a mapping does not have — both of which fail silently inside LibreOffice 
 | `extension/python/nexus_commands.py` | One function per command — the whole surface a user touches. |
 | `extension/python/pythonpath/nexusplm/` | `client.py` (the service), `document.py` (UNO), `odf.py` (the package on disk), `state.py` (which item a file is). |
 | `extension/python/nexusplm_controllers.py` | The UNO component behind the toolbar's stacked dropdowns. |
+| `extension/python/nexusplm_sidebar.py` | The UNO component behind the docked sidebar deck. |
 | `Nexus.PLM.LibreOffice.Templates/` | The ODF connector, .NET, `netstandard2.0` + `net8.0`. |
 | `Nexus.PLM.LibreOffice.Templates.Tests/` | 61 tests, including one that makes LibreOffice itself reopen a file the connector rewrote. |
-| `tests/python/` | 60 tests over the add-in's own logic — no LibreOffice required. |
+| `tests/python/` | 74 tests over the add-in's own logic — no LibreOffice required. |
 
 ## Design notes
 
@@ -131,6 +143,21 @@ copy and leaving the file alone. Both declarations are corrected before anything
 **One typing rule, shared.** A date, a number and a flag each have one lexical form, written the
 same way whether the document is open or closed. `OdfValueWrite` is that rule on the .NET side and
 `odf.py` mirrors it exactly.
+
+**A sidebar panel is not a window.** The deck is drawn with UNO controls, not by hosting a browser,
+because there is nothing to host one *in*. LibreOffice draws its entire interface itself inside one
+top-level window: on 26.2 the frame window hands back a Win32 handle, but the document window and a
+child made through the toolkit expose no system-dependent interface at all, and enumerating the
+frame's child windows returns **zero**. A panel is a painted rectangle. Parenting a native control
+to the frame instead would mean tracking that rectangle by hand — and the frame does not set
+`WS_CLIPCHILDREN`, so the office would paint over the control on every repaint. It would also be
+Windows-only. The same reasoning is why the toolbar's dropdowns are a UNO toolbar controller.
+
+**Whitespace inside a configuration value is part of the value.** A `ContextList` laid out prettily
+across several indented lines comes back with the newline and the indentation still inside it, so
+the application name is not `WriterVariants` and nothing ever matches: the deck appears in the rail
+and opens empty, with nothing logged. Its entries also each contain commas, so the list separator must
+be `;`. Both are checked by `build.py` now, because neither fails loudly.
 
 **Not the .NET/CLI UNO bridge.** It was considered and ruled out on evidence: of the five managed
 assemblies it needs, LibreOffice 26.2 ships none. Python UNO is the supported path.

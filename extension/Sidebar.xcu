@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Nexus PLM sidebar deck: one deck, one panel, in every application.
+
+  A deck is a tab down the sidebar's rail; a panel is a titled section inside it. The panel names
+  an ImplementationURL, which is how LibreOffice finds something to build it:
+
+      private:resource/toolpanel/NexusPLMPanelFactory/NexusPLMPanel
+                                 └─ the factory registered in Factories.xcu
+                                                        └─ which panel it is asking that factory for
+
+  WantsAWT is what makes a panel implementable outside C++. Without it LibreOffice expects a VCL
+  window it can only get from a compiled component; with it the factory may answer with an
+  ordinary com.sun.star.awt window, which Python can build. Everything here rests on that one flag.
+
+  ContextList is a list of descriptors, and each descriptor is itself "application, context,
+  initial state" separated by commas — so the list separator must NOT be a comma. Written with
+  oor:separator="," every descriptor is torn into three meaningless fragments, no context ever
+  matches, and the deck simply never appears in the rail with nothing logged anywhere. It is ";".
+  "any" means every context that application has, and "visible" means the panel is expanded when
+  the deck is first opened. The five entries are the same five applications the toolbar and menu
+  already cover.
+
+  They are written on ONE line with no indentation inside the value, because the configuration
+  keeps whatever whitespace is there: laid out prettily across lines, each descriptor comes back as
+  "
+            WriterVariants, any, visible " and the application name is never "WriterVariants",
+  so nothing matches and the panel is never built. Measured — the deck still appeared in the rail
+  and opened empty, and nothing was logged.
+-->
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Sidebar" oor:package="org.openoffice.Office.UI">
+
+  <node oor:name="Content">
+
+    <node oor:name="DeckList">
+      <node oor:name="NexusPLMDeck" oor:op="replace">
+        <prop oor:name="Id" oor:type="xs:string"><value>NexusPLMDeck</value></prop>
+        <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Nexus PLM</value></prop>
+        <prop oor:name="IconURL" oor:type="xs:string"><value>%origin%/icons/Nexus_26.png</value></prop>
+        <prop oor:name="TitleBarIconURL" oor:type="xs:string"><value>%origin%/icons/Nexus_16.png</value></prop>
+        <prop oor:name="OrderIndex" oor:type="xs:int"><value>100</value></prop>
+        <prop oor:name="ContextList">
+          <value oor:separator=";">WriterVariants, any, visible;Calc, any, visible;Impress, any, visible;Draw, any, visible;Math, any, visible</value>
+        </prop>
+      </node>
+    </node>
+
+    <node oor:name="PanelList">
+      <node oor:name="NexusPLMPanel" oor:op="replace">
+        <prop oor:name="Id" oor:type="xs:string"><value>NexusPLMPanel</value></prop>
+        <prop oor:name="DeckId" oor:type="xs:string"><value>NexusPLMDeck</value></prop>
+        <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Document</value></prop>
+        <prop oor:name="TitleBarIsOptional" oor:type="xs:boolean"><value>true</value></prop>
+        <prop oor:name="OrderIndex" oor:type="xs:int"><value>10</value></prop>
+        <prop oor:name="WantsAWT" oor:type="xs:boolean"><value>true</value></prop>
+        <!-- A checked-in document is read-only to the office, and that is exactly when a user most
+             wants to see what PLM thinks of it, so the panel must survive read-only. -->
+        <prop oor:name="ShowForReadOnlyDocument" oor:type="xs:boolean"><value>true</value></prop>
+        <prop oor:name="ImplementationURL" oor:type="xs:string">
+          <value>private:resource/toolpanel/NexusPLMPanelFactory/NexusPLMPanel</value>
+        </prop>
+        <prop oor:name="ContextList">
+          <value oor:separator=";">WriterVariants, any, visible;Calc, any, visible;Impress, any, visible;Draw, any, visible;Math, any, visible</value>
+        </prop>
+      </node>
+    </node>
+
+  </node>
+</oor:component-data>
