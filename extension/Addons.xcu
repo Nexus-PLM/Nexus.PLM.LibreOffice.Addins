@@ -240,8 +240,8 @@
       <node oor:name="i02" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$change_owner?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Properties_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Properties_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/ChangeOwner_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/ChangeOwner_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i03" oor:op="replace">
@@ -261,8 +261,8 @@
       <node oor:name="i05" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$connection_status?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Nexus_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Nexus_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/ConnectionStatus_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/ConnectionStatus_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i06" oor:op="replace">
@@ -289,8 +289,8 @@
       <node oor:name="i09" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$new_workflow?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Workflow_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Workflow_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/NewWorkflow_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/NewWorkflow_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i10" oor:op="replace">
@@ -310,15 +310,15 @@
       <node oor:name="i12" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$refresh_values?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Reload_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Reload_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/RefreshValues_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/RefreshValues_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i13" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$release?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Workflow_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Workflow_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Release_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Release_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i14" oor:op="replace">
@@ -331,8 +331,8 @@
       <node oor:name="i15" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$revise?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Reload_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Reload_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Revise_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Revise_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i16" oor:op="replace">
@@ -394,8 +394,8 @@
       <node oor:name="i24" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>nexusplm:account</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/SignIn_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/SignIn_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Account_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Account_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i25" oor:op="replace">
@@ -422,8 +422,8 @@
       <node oor:name="i28" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>nexusplm:values</value></prop>
         <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/EditValues_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/EditValues_26.png</value></prop>
+          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Values_16.png</value></prop>
+          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Values_26.png</value></prop>
         </node>
       </node>
       <node oor:name="i29" oor:op="replace">
