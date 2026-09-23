@@ -201,9 +201,14 @@ class Client:
     def release(self, item_id):
         return self._post("/plm/release", {"item_id": item_id}, timeout=DIALOG_TIMEOUT)
 
-    def revise(self, item_id):
-        """Creates the next revision. Answers the new item's id, revision and staged file."""
-        return self._post("/plm/revise", {"item_id": item_id}, timeout=DIALOG_TIMEOUT)
+    def revise(self, item_id, hwnd=0):
+        """Creates the next revision. Answers the new item's id, revision and staged file.
+
+        The window handle parents the choice of major or minor, which the service asks for when
+        the type allows both.
+        """
+        return self._post("/plm/revise", {"item_id": item_id, "hwnd": hwnd},
+                          timeout=DIALOG_TIMEOUT)
 
     def change_owner(self, item_id, hwnd=0, file_path=None):
         return self._dialog("/plm/set-owner",
