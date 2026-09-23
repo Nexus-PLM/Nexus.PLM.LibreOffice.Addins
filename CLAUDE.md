@@ -41,6 +41,37 @@ These each exist because something went wrong there. They are cheaper to inherit
   written as "LibreOffice refuses it", then tested by breaking it on purpose; LibreOffice 26.2 opens
   it happily. The comment now says what is actually true and why the rule is still kept.
 
+## The sidebar deck
+
+Three files, and all three must agree or the deck opens **empty with nothing logged**:
+`Sidebar.xcu` (the deck and its panel), `Factories.xcu` (which factory serves the panel's
+`ImplementationURL`), and `python/nexusplm_sidebar.py` (the component that factory is).
+`build.py` checks that they agree, because none of these fail loudly.
+
+Things measured on LibreOffice 26.2 while building it, each of which cost an hour:
+
+- **A panel is not a window.** LibreOffice draws its whole UI inside ONE top-level window. The
+  frame window implements `XSystemDependentWindowPeer` and hands back an HWND; the component
+  window and a child made through the toolkit expose no such interface at all, and
+  `EnumChildWindows` on the frame returns **zero**. So a panel cannot host WebView2 or CEF, and
+  the React pane cannot be reused here — the frame does not set `WS_CLIPCHILDREN` either, so a
+  control parented to it would be painted over on every repaint. Marc asked for this directly; the
+  answer is UNO controls, which is also the only version that works on Linux and Mac.
+- **`WantsAWT` is what makes a Python panel possible** — without it LibreOffice wants a VCL window
+  only a compiled component can give.
+- **Whitespace inside a configuration value is part of the value.** A `ContextList` indented
+  across several lines comes back with the newline and the indentation still inside it, so the
+  application name is not `WriterVariants` and nothing matches. Write each list on one line. Its descriptors also contain commas, so the separator must
+  be `;`, never `,`.
+- **`setPosSize` takes pixels**, not appfont units. Use `convertSizeToPixel(..., APPFONT)` off the
+  container; passing appfont numbers straight in drew the panel at a fifth of its size with every
+  row on top of the last.
+- Driving it: a synthetic click on the rail tab does not switch decks. Dispatch
+  `.uno:SidebarDeck.NexusPLMDeck` through the frame instead.
+
+Every decision the panel makes — which rows, which buttons, what to show for a document PLM does
+not know — lives in `pythonpath/nexusplm/panel.py` and is tested without LibreOffice.
+
 ## Tests
 
 ```bash

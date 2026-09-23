@@ -29,6 +29,17 @@
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
                        manifest:full-path="Controller.xcu"/>
 
+  <!-- The sidebar deck: the deck and its panel, the factory that builds the panel, and the
+       component that factory is. All three are needed — a deck with no registered factory opens
+       empty and LibreOffice reports nothing, because as far as it knows nobody claimed the
+       resource the panel names. -->
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="Sidebar.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data"
+                       manifest:full-path="Factories.xcu"/>
+  <manifest:file-entry manifest:media-type="application/vnd.sun.star.uno-component;type=Python"
+                       manifest:full-path="python/nexusplm_sidebar.py"/>
+
   <!-- The commands themselves. Registering the folder — not each file — is what makes
        "vnd.sun.star.script:...?language=Python&amp;location=user:uno_packages" resolve to it. -->
   <manifest:file-entry manifest:media-type="application/vnd.sun.star.framework-script"
