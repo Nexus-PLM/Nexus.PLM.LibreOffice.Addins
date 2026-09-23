@@ -1,0 +1,93 @@
+name: Add PR to project
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  add-to-project:
+    # A pull request from a fork gets no secrets, so the board token is empty and this job can
+    # only fail - and that failure would then be reported as an issue on the board. The board is
+    # for the maintainers' own branches; contributions from forks are triaged by hand.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.NEXUS_PLM_PROJECT_TOKEN }}
+        script: |
+          const projectId   = 'PVT_kwDOD-RDF84BUbus';
+          const statusField = 'PVTSSF_lADOD-RDF84BUbuszhBj2nw';
+          const prToNext    = '531fa42a';
+          const prToMain    = 'fc7de0a5';
+
+          const pr     = context.payload.pull_request;
+          const base   = pr.base.ref;
+          const author = pr.user.login;
+          const prefix = `PR to ${base}: `;
+
+          if (!pr.title.startsWith('PR to ')) {
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              title: prefix + pr.title
+            });
+          }
+
+          // Assign to PR author (skip for auto next->main PRs)
+          if (author !== 'github-actions[bot]' && pr.head.ref !== 'next') {
+            try {
+              await github.rest.issues.checkUserCanBeAssigned({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                assignee: author
+              });
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                assignees: [author]
+              });
+            } catch(e) {
+              core.info(`${author} cannot be assigned: ${e.message}`);
+            }
+          }
+
+          // Add to project board
+          let itemId;
+          try {
+            const result = await github.graphql(
+              `mutation($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                  item { id }
+                }
+              }`,
+              { projectId, contentId: pr.node_id }
+            );
+            itemId = result.addProjectV2ItemById.item.id;
+          } catch(e) {
+            core.setFailed('Could not add PR to project (verify NEXUS_PLM_PROJECT_TOKEN has the write "project" scope, not just read:project): ' + e.message);
+            return;
+          }
+
+          // Place in the correct column
+          const optionId = base === 'next' ? prToNext : (base === 'main' ? prToMain : null);
+          if (!optionId) return;
+          try {
+            await github.graphql(
+              `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                  value: { singleSelectOptionId: $optionId }
+                }) { projectV2Item { id } }
+              }`,
+              { projectId, itemId, fieldId: statusField, optionId }
+            );
+          } catch(e) {
+            core.warning('Could not set project column: ' + e.message);
+          }

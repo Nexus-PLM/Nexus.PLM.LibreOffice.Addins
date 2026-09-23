@@ -43,8 +43,12 @@ def check_icons():
             wanted.add(ref)
         else:
             wanted.update("%s_%d.png" % (ref, size) for size in (16, 26))
+    # Compared against the directory listing, not os.path.exists: Windows would answer yes for
+    # Nexus_16.png when the file is nexus_16.png, and the Linux runner would then fail on the
+    # very same commit. This check has to give the same answer on both.
+    present = set(os.listdir(icons))
     for name in sorted(wanted):
-        if not os.path.exists(os.path.join(icons, name)):
+        if name not in present:
             missing.append(name)
     if not os.path.exists(os.path.join(icons, "nexus-42.png")):
         missing.append("nexus-42.png")

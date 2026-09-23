@@ -1,0 +1,41 @@
+name: Enforce working branches must be created from next
+
+on:
+  create:
+
+jobs:
+  check-base:
+    if: "github.ref_type == 'branch' && (startsWith(github.ref, 'refs/heads/feature/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/hotfix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/bugfix/') || startsWith(github.ref, 'refs/heads/bug/'))"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const branch = context.ref.replace('refs/heads/', '');
+          const [branchRef, mainRef, nextRef] = await Promise.all([
+            github.rest.git.getRef({ owner: context.repo.owner, repo: context.repo.repo, ref: `heads/${branch}` }),
+            github.rest.git.getRef({ owner: context.repo.owner, repo: context.repo.repo, ref: 'heads/main' }),
+            github.rest.git.getRef({ owner: context.repo.owner, repo: context.repo.repo, ref: 'heads/next' })
+          ]);
+          const branchSha = branchRef.data.object.sha;
+          const mainSha   = mainRef.data.object.sha;
+          const nextSha   = nextRef.data.object.sha;
+          // Only enforce when main and next are at different commits.
+          // When main === next (right after a release), branching from either is equivalent.
+          if (branchSha === mainSha && mainSha !== nextSha) {
+            await github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branch}`
+            });
+            core.setFailed(
+              `Branch '${branch}' was created from 'main'. All working branches must be created from 'next'.\n` +
+              `The branch has been deleted automatically.\n\n` +
+              `To create your branch correctly:\n` +
+              `  git fetch\n` +
+              `  git checkout -b ${branch} origin/next\n\n` +
+              `Or use the project board script:\n` +
+              `  .\\05-create-branch-from-issue.ps1 -IssueUrl <issue-url>`
+            );
+          }
