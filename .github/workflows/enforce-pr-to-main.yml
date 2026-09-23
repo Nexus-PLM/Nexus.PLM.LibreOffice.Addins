@@ -1,0 +1,38 @@
+name: Enforce PRs to main must come from next
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const head = context.payload.pull_request.head.ref;
+          if (head !== 'next') {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body:
+                '❌ Only `next` may be merged into `main`. This PR has been closed automatically.\n\n' +
+                'To get changes into `main`:\n' +
+                '1. Re-target your PR at `next` instead\n' +
+                '2. Once merged to `next`, an automated PR to `main` will open for review'
+            });
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              state: 'closed'
+            });
+            core.setFailed(`Only 'next' may merge into 'main'. PR from '${head}' has been closed.`);
+          }

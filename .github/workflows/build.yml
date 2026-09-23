@@ -1,0 +1,71 @@
+name: Build and Test
+
+# CI builds and tests the connector, and packs the extension. The LibreOffice UNO half cannot be
+# exercised without a LibreOffice, so its one end-to-end test reports itself as skipped rather
+# than passed; everything about the extension that can be checked without an office — every menu
+# URL naming an exported function, every icon a mapping names being present — is checked by
+# build.py, which is why packing is part of CI.
+#
+# Builds on pull_request only. A push trigger would build the very same commit a second time:
+# the PR to next, the push when it merged, the next->main PR, and the push when that merged.
+# The PR build is the one anybody reads.
+on:
+  pull_request:
+    branches: [ "main", "next" ]
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    # Nothing here needs Windows: the connector targets netstandard2.0 and net8.0, and the
+    # extension is Python and XML. Linux minutes bill at a fifth of Windows minutes.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Record the SDK that built this
+      run: dotnet --version
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Add Nexus PLM package feed
+      # Nexus.PLM.Addin.Sdk.Templates is served from GitHub Packages, which requires
+      # authentication even for public packages.
+      run: >
+        dotnet nuget add source "https://nuget.pkg.github.com/Nexus-PLM/index.json"
+        --name nexus-plm
+        --username "${{ github.actor }}"
+        --password "${{ secrets.NUGET_READ_TOKEN || secrets.GITHUB_TOKEN }}"
+        --store-password-in-clear-text
+
+    - name: Restore
+      run: dotnet restore Nexus.PLM.LibreOffice.Templates.Tests/Nexus.PLM.LibreOffice.Templates.Tests.csproj
+
+    - name: Build
+      run: dotnet build Nexus.PLM.LibreOffice.Templates.Tests/Nexus.PLM.LibreOffice.Templates.Tests.csproj --no-restore -c Release
+
+    - name: Test
+      run: dotnet test Nexus.PLM.LibreOffice.Templates.Tests/Nexus.PLM.LibreOffice.Templates.Tests.csproj --no-build -c Release
+
+    - name: Pack the extension
+      # Fails if a menu names a function the script does not export, or an icon a mapping
+      # names is missing. Does not install: there is no LibreOffice here to install into.
+      run: python3 extension/build.py
+
+    - name: Keep the package
+      uses: actions/upload-artifact@v4
+      with:
+        name: NexusPLM.oxt
+        path: dist/NexusPLM.oxt
