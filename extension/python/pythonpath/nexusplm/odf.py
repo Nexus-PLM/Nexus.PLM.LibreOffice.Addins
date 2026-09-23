@@ -29,6 +29,10 @@ DOCUMENT_MIME_TYPES = {
         "application/vnd.oasis.opendocument.formula",
 }
 
+#: Where a package says what each of its parts is — including, in its root entry, what the
+#: package itself is. ODF requires that to agree with ``mimetype``.
+MANIFEST = "META-INF/manifest.xml"
+
 #: The extensions a document of each of those types is named with.
 DOCUMENT_EXTENSIONS = {".odt", ".ods", ".odp", ".odg", ".odf"}
 
@@ -68,7 +72,12 @@ def make_document(path):
             for entry in source.infolist():
                 if entry.filename == "mimetype":
                     continue
-                target.writestr(entry, source.read(entry.filename))
+
+                content = source.read(entry.filename)
+                if entry.filename == MANIFEST:
+                    content = _manifest_says(content, mime_type, document_type)
+
+                target.writestr(entry, content)
         shutil.move(temporary, path)
         return True
     except Exception:
@@ -79,6 +88,24 @@ def make_document(path):
         # The file is untouched, so the office still opens something — a template copy, which is
         # the old behaviour, rather than nothing at all.
         return False
+
+
+def _manifest_says(manifest, was, now):
+    """The manifest's root entry, changed from the template's type to the document's.
+
+    A package whose ``mimetype`` and whose manifest disagree about what it is opens with
+    "(repaired document)" across the title bar and a dialog behind it: LibreOffice believes the
+    file damaged, because by ODF the two have to say the same thing. Only the root entry is
+    touched — every other entry names a part, not the document.
+    """
+    root = b'manifest:full-path="/"'
+    if root not in manifest:
+        return manifest
+
+    start = manifest.index(root)
+    end = manifest.index(b">", start)
+    entry = manifest[start:end]
+    return manifest[:start] + entry.replace(was.encode("ascii"), now.encode("ascii")) + manifest[end:]
 
 
 def _stored(name):
