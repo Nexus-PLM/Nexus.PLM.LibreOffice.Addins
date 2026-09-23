@@ -59,6 +59,11 @@ jobs:
     - name: Test
       run: dotnet test Nexus.PLM.LibreOffice.Templates.Tests/Nexus.PLM.LibreOffice.Templates.Tests.csproj --no-build -c Release
 
+    - name: Test the add-in's own Python
+      # The UNO-facing code imports no UNO at module scope, so the path conversions it hands to
+      # LibreOffice can be checked without an office. Windows-path cases report as skipped here.
+      run: python3 -m unittest discover -s tests/python -v
+
     - name: Pack the extension
       # Fails if a menu names a function the script does not export, or an icon a mapping
       # names is missing. Does not install: there is no LibreOffice here to install into.
