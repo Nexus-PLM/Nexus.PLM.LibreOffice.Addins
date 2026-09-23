@@ -422,6 +422,11 @@ def revise(*_args):
     if answer.get("file_path"):
         _open_with_values(context, client, answer, "Revise")
     else:
+        # This file is the new revision from now on. Without writing that down the add-in goes on
+        # acting on the revision that was just superseded: every command resolves the document
+        # through the map, and the map still held the old one.
+        _remember(path, answer)
+
         written = doc.write_user_fields(document, answer.get("attribute_mappings") or {})
         _log("Revise: no staged file for this item, wrote %d field(s) into the open document"
              % written)
