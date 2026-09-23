@@ -222,6 +222,44 @@ def number_value(text):
         return None
 
 
+def text_of(value):
+    """A property's value as the text ODF stores, whatever type it is.
+
+    A typed property comes back from UNO as a struct, and ``str()`` on one renders its repr:
+    Edit Values showed a review date as
+    ``scr(com.sun.star.util.Date){ Day = (unsigned short)0x18, Month = ...``, and had it been
+    saved that is what PLM would have held. The lexical forms here are the ones
+    ``OdfValueWrite`` writes into a closed file, so reading an open document and reading a closed
+    one give the same answer.
+    """
+    if value is None:
+        return ""
+
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    if isinstance(value, float):
+        # 3.0 is the number three, not "3.0" — ODF stores the shortest form that round-trips.
+        return repr(int(value)) if value.is_integer() else repr(value)
+
+    if isinstance(value, int):
+        return str(value)
+
+    has = lambda *names: all(hasattr(value, name) for name in names)   # noqa: E731
+
+    if has("Year", "Month", "Day"):
+        text = "%04d-%02d-%02d" % (value.Year, value.Month, value.Day)
+        if has("Hours", "Minutes", "Seconds"):
+            return text + "T%02d:%02d:%02d" % (value.Hours, value.Minutes, value.Seconds)
+        return text + "T00:00:00"
+
+    if has("Hours", "Minutes", "Seconds"):
+        # com.sun.star.util.Time and Duration both land here; ODF holds a duration.
+        return "PT%dH%dM%dS" % (value.Hours, value.Minutes, value.Seconds)
+
+    return str(value)
+
+
 def user_fields(document):
     """The document's user-defined properties, name to text.
 
@@ -232,8 +270,7 @@ def user_fields(document):
     try:
         container = document.getDocumentProperties().getUserDefinedProperties()
         for prop in container.getPropertySetInfo().getProperties():
-            value = container.getPropertyValue(prop.Name)
-            values[prop.Name] = "" if value is None else str(value)
+            values[prop.Name] = text_of(container.getPropertyValue(prop.Name))
     except Exception:
         pass
     return values
