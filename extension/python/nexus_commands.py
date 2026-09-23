@@ -103,10 +103,25 @@ def _message_box(text, question=False):
         context = XSCRIPTCONTEXT.getComponentContext()          # noqa: F821
         toolkit = context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.Toolkit", context)
-        parent = XSCRIPTCONTEXT.getDesktop().getCurrentFrame().getContainerWindow()  # noqa: F821
-        # MessageBoxType: 1 = INFOBOX, 3 = QUERYBOX. Buttons: 1 = OK, 3 = YES_NO. Result: 2 = YES.
-        box = toolkit.createMessageBox(parent, 3 if question else 1, 3 if question else 1,
+
+        # The document's own window, brought forward first. Asking the desktop for its "current
+        # frame" put the box behind the document: Reload sat there for minutes looking hung, with
+        # the question nobody could see waiting for an answer.
+        parent = doc.window_of(doc.current(context))
+        if parent is not None:
+            try:
+                parent.toFront()
+            except Exception:
+                pass
+
+        # MessageBoxType: 1 = INFOBOX, 4 = QUERYBOX — 3 is ERRORBOX, which is why a question
+        # carried a red cross. Buttons: 1 = OK, 3 = YES_NO. Result: 2 = YES.
+        box = toolkit.createMessageBox(parent, 4 if question else 1, 3 if question else 1,
                                        "Nexus PLM", text)
+        try:
+            box.toFront()
+        except Exception:
+            pass
         return box.execute() == 2
     except Exception:
         _log("could not show a message box: " + text)
@@ -186,8 +201,14 @@ def _open_with_values(context, client, answer, command):
     # then refuses. The Office add-ins learned this one the same way.
     _remember(staged, answer)
 
-    opened = doc.open_staged(context, staged)
-    written = doc.write_user_fields(opened, answer.get("attribute_mappings") or {})
+    # The values go into the file, not into the document once it is open: nothing should depend on
+    # a later save happening. The open document is written too, so a document already on screen
+    # shows them without being reloaded.
+    values = answer.get("attribute_mappings") or {}
+    opened = doc.open_staged(context, staged, values)
+
+    # And into the document on screen, which a file already open would not otherwise show.
+    written = doc.write_user_fields(opened, values)
     _log("%s: opened '%s' as %s, wrote %d field(s)"
          % (command, staged, state.item_of(staged) or "an unknown item", written))
     return opened
