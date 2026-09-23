@@ -26,7 +26,11 @@ ROOT_BASE_TYPE = "DocumentsBase"
 
 # Long enough for a command that puts a dialog in front of the user and waits for them, short
 # enough that a service which is not running fails rather than hanging the application.
-DIALOG_TIMEOUT = 600
+#: A call that opens a dialog waits for a person, and a person may take their time. Ten minutes
+#: was not enough: a Settings window left open longer than that reported the command as failed,
+#: for a dialog that then saved perfectly well. A service that has died is a different thing and is
+#: noticed at once — the socket closes, which is an error of its own, not a timeout.
+DIALOG_TIMEOUT = 3600
 QUICK_TIMEOUT = 15
 
 

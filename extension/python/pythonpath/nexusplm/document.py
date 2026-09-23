@@ -100,17 +100,18 @@ def close_without_saving(document):
         pass
 
 
-def open_staged(context, path):
+def open_staged(context, path, values=None):
     """Opens a file the service staged, or brings it forward if it is already open.
 
     Opening a second copy of a file the user already has open is how "the document is already open"
     turns into two windows fighting over one path — and the add-in keys what it knows about a
     document on that path.
     """
-    # A file staged from a type's template still carries the template's body, whatever it is named:
-    # an office asked to open that opens an untitled copy and leaves the file alone, so every PLM
-    # command afterwards is about a document with no path. Put right before anything opens it.
-    odf.make_document(path)
+    # Put the file right before anything opens it: a template body made into the document it
+    # stands for, and PLM's values written in. Both have to happen while the file is closed — an
+    # office opens a template by copying it, and a value written into the open document only
+    # reaches the file if something later saves it.
+    odf.make_document(path, values)
 
     url = path_to_url(path)
 
@@ -125,6 +126,14 @@ def open_staged(context, path):
             return component
 
     return desktop(context).loadComponentFromURL(url, "_blank", 0, ())
+
+
+def window_of(document):
+    """The document's own window, for parenting a box to, or ``None``."""
+    try:
+        return document.getCurrentController().getFrame().getContainerWindow()
+    except Exception:
+        return None
 
 
 def window_handle(document):
