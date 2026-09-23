@@ -29,11 +29,23 @@ META = (
 )
 
 
+MANIFEST = (
+    """<?xml version="1.0" encoding="UTF-8"?>"""
+    """<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" """
+    """manifest:version="1.4">"""
+    """<manifest:file-entry manifest:full-path="/" manifest:version="1.4" """
+    """manifest:media-type="%s"/>"""
+    """<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>"""
+    """</manifest:manifest>"""
+)
+
+
 def package(path, mime_type, extra=("meta.xml", META)):
     with zipfile.ZipFile(path, "w") as out:
         stored = zipfile.ZipInfo("mimetype")
         stored.compress_type = zipfile.ZIP_STORED
         out.writestr(stored, mime_type)
+        out.writestr("META-INF/manifest.xml", MANIFEST % mime_type)
         out.writestr(extra[0], extra[1])
         out.writestr("content.xml", "<office:document-content/>")
     return path
@@ -76,7 +88,8 @@ class MakingADocumentOfIt(unittest.TestCase):
         odf.make_document(staged)
 
         with zipfile.ZipFile(staged) as after:
-            self.assertEqual(["mimetype", "meta.xml", "content.xml"], after.namelist())
+            self.assertEqual(["mimetype", "META-INF/manifest.xml", "meta.xml", "content.xml"],
+                             after.namelist())
             self.assertIn("LTD-00000005-ODT", after.read("meta.xml").decode())
 
     def test_mimetype_stays_first_and_uncompressed(self):
@@ -112,6 +125,43 @@ class MakingADocumentOfIt(unittest.TestCase):
         self.assertIsNone(odf.mime_type_of(other))
         with open(other, "rb") as handle:
             self.assertEqual(b"not a zip at all", handle.read(), "it must be left untouched")
+
+    def test_the_manifest_agrees_with_the_mimetype(self):
+        """The half that was missed: a package whose two type declarations disagree opens with
+        "(repaired document)" across the title bar, because by ODF they have to say the same."""
+        staged = package(self.path("LTD-1.odt"), "application/vnd.oasis.opendocument.text-template")
+
+        odf.make_document(staged)
+
+        with zipfile.ZipFile(staged) as after:
+            manifest = after.read("META-INF/manifest.xml").decode()
+
+        self.assertIn('manifest:full-path="/" manifest:version="1.4" '
+                      'manifest:media-type="application/vnd.oasis.opendocument.text"', manifest)
+        self.assertNotIn("text-template", manifest)
+
+    def test_only_the_root_entry_of_the_manifest_changes(self):
+        """Every other entry names a part, not the document; rewriting one would lose a part."""
+        staged = package(self.path("LTD-1.odt"), "application/vnd.oasis.opendocument.text-template")
+
+        odf.make_document(staged)
+
+        with zipfile.ZipFile(staged) as after:
+            manifest = after.read("META-INF/manifest.xml").decode()
+
+        self.assertIn('manifest:full-path="content.xml" manifest:media-type="text/xml"', manifest)
+
+    def test_a_package_with_no_manifest(self):
+        """Not every ODF package carries one, and a missing manifest is not a reason to give up."""
+        staged = self.path("LTD-1.odt")
+        with zipfile.ZipFile(staged, "w") as out:
+            stored = zipfile.ZipInfo("mimetype")
+            stored.compress_type = zipfile.ZIP_STORED
+            out.writestr(stored, "application/vnd.oasis.opendocument.text-template")
+            out.writestr("content.xml", "<office:document-content/>")
+
+        self.assertTrue(odf.make_document(staged))
+        self.assertEqual("application/vnd.oasis.opendocument.text", odf.mime_type_of(staged))
 
     def test_a_file_that_is_not_there(self):
         self.assertFalse(odf.make_document(self.path("gone.odt")))
