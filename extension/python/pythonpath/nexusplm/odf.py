@@ -121,25 +121,36 @@ def _meta_holds(meta, values):
     wanted = {name.lower(): value for name, value in values.items()}
 
     def replace(match):
-        whole, name, kind, current = match.group(0), match.group(1), match.group(2), match.group(3)
-        incoming = wanted.get(name.lower())
+        whole, attributes = match.group(0), match.group("attributes")
+
+        name = _NAME.search(attributes)
+        if name is None:
+            return whole
+
+        incoming = wanted.get(name.group(1).lower())
         if incoming is None:
             return whole
 
-        lexical = _lexical(kind, incoming)
+        kind = _KIND.search(attributes)
+        lexical = _lexical(kind.group(1) if kind else None, incoming)
         if lexical is None:
             return whole
 
-        head = whole[:whole.index(">") + 1]
-        return head + _escaped(lexical) + "</meta:user-defined>"
+        return "<meta:user-defined%s>%s</meta:user-defined>" % (
+            attributes.rstrip(), _escaped(lexical))
 
     return _FIELD.sub(replace, text).encode("utf-8")
 
 
-#: One ``meta:user-defined`` element: its name, its declared type, and what it holds.
+#: One ``meta:user-defined`` element, in both the shapes a document holds it in: with a value, and
+#: self-closing when it has none. The empty ones are exactly the fields PLM fills in, and a pattern
+#: that only matched the first shape skipped every one of them — the part number above all.
 _FIELD = re.compile(
-    r'<meta:user-defined meta:name="([^"]+)"'
-    r'(?:[^>]*?meta:value-type="([^"]+)")?[^>]*>([^<]*)</meta:user-defined>')
+    r'<meta:user-defined(?P<attributes>[^>]*?)'
+    r'(?:/>|>[^<]*</meta:user-defined>)')
+
+_NAME = re.compile(r'meta:name="([^"]+)"')
+_KIND = re.compile(r'meta:value-type="([^"]+)"')
 
 
 def _lexical(kind, text):

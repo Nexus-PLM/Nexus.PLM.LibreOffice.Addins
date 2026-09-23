@@ -194,3 +194,57 @@ class WritingTheStagedFile(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AFieldWithNoValueYet(unittest.TestCase):
+    """The fields PLM fills in are exactly the ones a template leaves empty.
+
+    LibreOffice writes an empty property self-closing — ``<meta:user-defined meta:name="Author"/>``
+    — and a pattern that only knew the ``<x>value</x>`` shape skipped every one of them. Live, that
+    meant a staged document with its dates and its number written in and no part number.
+    """
+
+    def setUp(self):
+        self.folder = tempfile.mkdtemp(prefix="nexus-empty-")
+
+    def package_with_empty_fields(self):
+        path = os.path.join(self.folder, "LTD-00000008-ODT.odt")
+        meta_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+            'xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"><office:meta>'
+            '<meta:user-defined meta:name="PartNumber" meta:value-type="string"/>'
+            '<meta:user-defined meta:name="Author"/>'
+            '<meta:user-defined meta:name="Priority" meta:value-type="float">3</meta:user-defined>'
+            '</office:meta></office:document-meta>')
+        with zipfile.ZipFile(path, "w") as out:
+            stored = zipfile.ZipInfo("mimetype")
+            stored.compress_type = zipfile.ZIP_STORED
+            out.writestr(stored, "application/vnd.oasis.opendocument.text")
+            out.writestr("meta.xml", meta_xml)
+        return path
+
+    def test_an_empty_field_is_written(self):
+        staged = self.package_with_empty_fields()
+
+        odf.make_document(staged, {"PartNumber": "LTD-00000008-ODT", "Author": "Marc Jeeves"})
+
+        after = values_of(staged)
+        self.assertEqual("LTD-00000008-ODT", after["PartNumber"])
+        self.assertEqual("Marc Jeeves", after["Author"])
+
+    def test_it_keeps_the_type_the_field_was_given(self):
+        staged = self.package_with_empty_fields()
+
+        odf.make_document(staged, {"PartNumber": "LTD-1"})
+
+        with zipfile.ZipFile(staged) as after:
+            text = after.read("meta.xml").decode()
+        self.assertIn('meta:name="PartNumber" meta:value-type="string">LTD-1', text)
+
+    def test_a_field_with_a_value_still_works(self):
+        staged = self.package_with_empty_fields()
+
+        odf.make_document(staged, {"Priority": "9"})
+
+        self.assertEqual("9", values_of(staged)["Priority"])
