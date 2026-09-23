@@ -58,8 +58,16 @@ def url_to_path(url):
 
 
 def path_to_url(path):
-    """The inverse, for handing a staged file back to the office to open."""
-    return "file:///" + urllib.parse.quote(os.path.abspath(path).replace("\\", "/"))
+    """The inverse, for handing a staged file back to the office to open.
+
+    The drive colon and the separators stay as they are. Percent-encoding the colon produces a URL
+    every zip tool and every browser accepts and LibreOffice does not: ``loadComponentFromURL`` on
+    ``file:///C%3A/Nexus/Staging/LTD-00000001-ODT.ott`` raises ``IllegalArgumentException`` —
+    "type detection failed" — because it never gets as far as looking at the file. Measured against
+    LibreOffice 26.2: the same file at ``file:///C:/...`` opens.
+    """
+    return "file:///" + urllib.parse.quote(
+        os.path.abspath(path).replace("\\", "/"), safe=":/")
 
 
 def is_modified(document):

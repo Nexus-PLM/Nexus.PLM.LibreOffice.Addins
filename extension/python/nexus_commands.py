@@ -22,6 +22,7 @@ import webbrowser
 # It is the only way to find the package, because the provider exec()s this module and sets
 # ``__file__`` only afterwards — at import time the name does not exist at all.
 from nexusplm import document as doc
+from nexusplm import state
 from nexusplm.client import Client, ServiceUnavailable
 
 _LOG = os.path.join(
@@ -120,11 +121,40 @@ def _here():
 
 
 def _item_of(client, path):
-    """The PLM item a document is, or ``None`` when it is not registered."""
+    """The PLM item a document is, or ``None`` when it is not registered.
+
+    What this add-in wrote down when it last handled the file comes first, because asking the
+    service by path does not answer the question: ``/plm/state?file_path=`` searches the Engine for
+    an object carrying that path as an attribute, and on a live server that search finds nothing —
+    not for a document created seconds earlier, not for one checked in months ago. The path is
+    still asked about when nothing is remembered, so a path the service can resolve still works.
+    """
     if not path:
         return None
-    state = client.state(file_path=path)
-    return state.get("item_id") if state.get("success") else None
+
+    remembered = state.item_of(path)
+    if remembered:
+        # Confirm it with PLM rather than trusting the note: the item may have been deleted, and
+        # the answer carries the current status anyway.
+        answer = client.state(item_id=remembered)
+        if answer.get("success") and answer.get("item_id"):
+            return answer["item_id"]
+        state.forget(path)
+
+    answer = client.state(file_path=path)
+    if answer.get("success") and answer.get("item_id"):
+        _remember(path, answer)
+        return answer["item_id"]
+    return None
+
+
+def _remember(path, answer):
+    """Writes down which item a file is, from whatever the service just answered about it."""
+    item_id = answer.get("item_id") or answer.get("plm_object_id")
+    if path and item_id:
+        state.remember(path, item_id,
+                       part_number=answer.get("part_number"),
+                       object_id=answer.get("object_id") or answer.get("plm_object_id"))
 
 
 def _require_item(client, path):
@@ -151,9 +181,15 @@ def _open_with_values(context, client, answer, command):
         _say(client, "That item has no document in the vault.", "warning")
         return None
 
+    # Which item this file is, before anything else: every PLM command keys off the path, and a
+    # staged file the add-in opened without writing that down is a file on which every command
+    # then refuses. The Office add-ins learned this one the same way.
+    _remember(staged, answer)
+
     opened = doc.open_staged(context, staged)
     written = doc.write_user_fields(opened, answer.get("attribute_mappings") or {})
-    _log("%s: opened '%s', wrote %d field(s)" % (command, staged, written))
+    _log("%s: opened '%s' as %s, wrote %d field(s)"
+         % (command, staged, state.item_of(staged) or "an unknown item", written))
     return opened
 
 
@@ -265,6 +301,10 @@ def save_as_new(*_args):
     if not answer.get("success"):
         return _refused(client, answer, "Save As")
 
+    # This file is that item from now on. Registering it and then not writing that down is how a
+    # document PLM had just created came back as "not registered in PLM" on the next command.
+    _remember(path, answer)
+
     # Registering allocates the number PLM chose; the document should show it.
     doc.write_user_fields(document, answer.get("attribute_mappings") or {})
 
@@ -282,7 +322,10 @@ def save_as_existing(*_args):
 
     answer = client.save_as_existing(path, hwnd, file_extensions=doc.OPENABLE_EXTENSIONS)
     if not answer.get("success"):
-        _refused(client, answer, "Save As Existing")
+        return _refused(client, answer, "Save As Existing")
+
+    # The document now belongs to the item the user picked, not to whatever it was before.
+    _remember(path, answer)
 
 
 # ── tasks ───────────────────────────────────────────────────────────────────
