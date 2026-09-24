@@ -248,6 +248,27 @@ class Client:
             "hwnd": hwnd, "host_name": HOST_NAME, "addin_version": addin_version,
         })
 
+    # ── navigator ────────────────────────────────────────────────────────────
+
+    def folders(self):
+        """Every folder the signed-in user may read: ``{"success", "folders": [...]}``.
+
+        One flat list, each folder carrying its own ``parent_id``; :mod:`nexusplm.navigator`
+        turns that into the tree. These are reads, so unlike every other ``/plm`` call they
+        raise no toast and open no sign-in window — a signed-out user gets an empty answer and
+        the panel says so.
+        """
+        return self._get("/plm/navigation/folders", timeout=DIALOG_TIMEOUT)
+
+    def folder_items(self, folder_id):
+        """What is in one folder: ``{"success", "items": [...]}``."""
+        return self._get("/plm/navigation/folders/%s/items" % urllib.parse.quote(str(folder_id)),
+                         timeout=DIALOG_TIMEOUT)
+
+    def lookup(self, query):
+        """Items matching a part number or name: ``{"success", "items": [...]}``."""
+        return self._get("/plm/navigation/lookup", q=query, timeout=DIALOG_TIMEOUT)
+
     def notify(self, message, severity="info"):
         """Posts a toast for something only this host knows.
 
