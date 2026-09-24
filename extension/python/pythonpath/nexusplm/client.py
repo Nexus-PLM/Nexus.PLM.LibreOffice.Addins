@@ -269,6 +269,16 @@ class Client:
         """Items matching a part number or name: ``{"success", "items": [...]}``."""
         return self._get("/plm/navigation/lookup", q=query, timeout=DIALOG_TIMEOUT)
 
+    def stage(self, plm_object_id):
+        """Downloads an item's document into staging: ``{"success", "file_path", "error"}``.
+
+        The navigator knows an object id, not a file. ``/plm/open`` cannot help — it shows the
+        vault browser and takes no id — so this is the route the pane opens through.
+        """
+        return self._post("/plm/navigation/stage",
+                          {"plm_object_id": plm_object_id, "root_base_type": ROOT_BASE_TYPE},
+                          timeout=DIALOG_TIMEOUT)
+
     def notify(self, message, severity="info"):
         """Posts a toast for something only this host knows.
 

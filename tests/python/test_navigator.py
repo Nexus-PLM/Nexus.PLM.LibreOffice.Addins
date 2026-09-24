@@ -123,5 +123,27 @@ class WantsChildren(unittest.TestCase):
         self.assertFalse(navigator.wants_children(roots[0]))
 
 
+class NodeReferences(unittest.TestCase):
+    """What a tree node carries, so a click can tell a folder from an item."""
+
+    def test_a_reference_says_which_kind_it_is(self):
+        self.assertEqual(("item", "abc"), navigator.parse_ref(navigator.ref(navigator.ITEM, "abc")))
+        self.assertEqual(("folder", "sys-my-working"),
+                         navigator.parse_ref(navigator.ref(navigator.FOLDER, "sys-my-working")))
+
+    def test_an_object_id_and_a_folder_id_that_read_alike_stay_apart(self):
+        same = "e106957a-db10-42ba-98a6-19c2c85f5768"
+
+        self.assertNotEqual(navigator.ref(navigator.ITEM, same),
+                            navigator.ref(navigator.FOLDER, same))
+
+    def test_an_id_containing_a_colon_survives_the_round_trip(self):
+        self.assertEqual(("item", "a:b:c"), navigator.parse_ref(navigator.ref(navigator.ITEM, "a:b:c")))
+
+    def test_anything_unlabelled_is_nothing_to_act_on(self):
+        for value in (None, "", "rubbish", "item:", ":abc", "other:abc", 7):
+            self.assertEqual((None, None), navigator.parse_ref(value), value)
+
+
 if __name__ == "__main__":
     unittest.main()

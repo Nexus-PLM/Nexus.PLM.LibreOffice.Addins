@@ -81,3 +81,29 @@ def item_label(item):
     part = (item.get("part_number") or "").strip() or "(no part number)"
     revision = (item.get("revision") or "").strip()
     return "%s  %s" % (part, revision) if revision else part
+
+
+#: A tree node carries one of these as its data value, so a click can tell what it landed on.
+#: Folder ids and object ids are both opaque strings and would otherwise be indistinguishable —
+#: and acting on the wrong one means trying to open a folder.
+FOLDER = "folder"
+ITEM = "item"
+
+
+def ref(kind, identifier):
+    """The data value for a node of this kind."""
+    return "%s:%s" % (kind, identifier or "")
+
+
+def parse_ref(value):
+    """``(kind, identifier)`` for a node's data value, or ``(None, None)`` for anything else.
+
+    Anything unrecognised is nothing rather than a guess: a node the panel did not label is one
+    no click should act on.
+    """
+    if not isinstance(value, str) or ":" not in value:
+        return None, None
+    kind, identifier = value.split(":", 1)
+    if kind not in (FOLDER, ITEM) or not identifier:
+        return None, None
+    return kind, identifier

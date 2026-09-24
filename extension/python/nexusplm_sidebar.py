@@ -23,7 +23,8 @@ import traceback
 
 import uno
 import unohelper
-from com.sun.star.awt import XActionListener, XWindowListener, Rectangle, Size
+from com.sun.star.awt import (XActionListener, XMouseListener, XWindowListener,
+                              Rectangle, Size)
 from com.sun.star.awt.tree import XTreeExpansionListener
 from com.sun.star.util import MeasureUnit
 from com.sun.star.lang import XServiceInfo
@@ -75,7 +76,7 @@ def _log(message):
 
 
 class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
-            XTreeExpansionListener):
+            XTreeExpansionListener, XMouseListener):
     """One sidebar panel: the window, its contents, and what its buttons do."""
 
     def __init__(self, ctx, frame, parent, resource_url):
@@ -128,12 +129,15 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         model.setPropertyValue("ShowsHandles", True)
         model.setPropertyValue("ShowsRootHandles", True)
         model.setPropertyValue("Editable", False)
+        model.setPropertyValue(
+            "SelectionType", uno.Enum("com.sun.star.view.SelectionType", "SINGLE"))
 
         control = self.smgr.createInstanceWithContext(
             "com.sun.star.awt.tree.TreeControl", self.ctx)
         control.setModel(model)
         container.addControl(name, control)
         control.addTreeExpansionListener(self)
+        control.addMouseListener(self)
         return control
 
     def _build(self, parent):
@@ -303,7 +307,7 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         made = self._tree_data.createNode(node["label"],
                                           navigator_rules.wants_children(node))
         # pyuno exposes this as an attribute, not a setter: setDataValue does not exist.
-        made.DataValue = node["id"]
+        made.DataValue = navigator_rules.ref(navigator_rules.FOLDER, node["id"])
         for child in node["children"]:
             made.appendChild(self._node_for(child))
         return made
@@ -318,8 +322,8 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         """
         try:
             node = event.Node
-            folder_id = node.DataValue
-            if not folder_id or folder_id in self._loaded_folders:
+            kind, folder_id = navigator_rules.parse_ref(node.DataValue)
+            if kind != navigator_rules.FOLDER or folder_id in self._loaded_folders:
                 return
             self._loaded_folders.add(folder_id)
 
@@ -327,10 +331,11 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
             items = answer.get("items") or []
             for item in items:
                 child = self._tree_data.createNode(navigator_rules.item_label(item), False)
-                # The item's own id, so opening it later needs no second lookup. A folder's
-                # data value is its folder id and an item's is its object id; they never
-                # collide, because a folder is never asked to open.
-                child.DataValue = item.get("plm_object_id") or ""
+                # The item's own id, so opening it needs no second lookup. The reference says
+                # which kind it is: a folder id and an object id are both opaque strings, and a
+                # double-click that cannot tell them apart would try to open a folder.
+                child.DataValue = navigator_rules.ref(
+                    navigator_rules.ITEM, item.get("plm_object_id"))
                 node.appendChild(child)
 
             if not items:
@@ -339,6 +344,66 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
                 node.appendChild(self._tree_data.createNode("(empty)", False))
         except Exception:
             _log("folder contents failed\n%s" % traceback.format_exc())
+
+    # -- XMouseListener ----------------------------------------------------
+
+    def mousePressed(self, event):
+        """Open the item under a double-click.
+
+        A double-click is what opens a document everywhere else in PLM, and a tree has no other
+        obvious gesture: a single click has to stay free for selecting, and the expand handles
+        already own the click that opens a folder.
+        """
+        try:
+            if event.ClickCount < 2:
+                return
+            # What was clicked, not what is selected. getSelection() on this control answers
+            # None even with a row plainly highlighted - measured on 26.2 - and acting on the
+            # click's own position is the more honest reading of the gesture anyway.
+            node = self._tree.getNodeForLocation(event.X, event.Y)
+            if node is None:
+                return
+            kind, object_id = navigator_rules.parse_ref(node.DataValue)
+            # A folder's double-click is LibreOffice's own expand, and "(empty)" is not anything.
+            if kind != navigator_rules.ITEM:
+                return
+            self._open_item(object_id, node.DisplayValue)
+        except Exception:
+            _log("tree double-click failed\n%s" % traceback.format_exc())
+
+    def mouseReleased(self, event):
+        pass
+
+    def mouseEntered(self, event):
+        pass
+
+    def mouseExited(self, event):
+        pass
+
+    def _open_item(self, object_id, label):
+        """Stage an item's document and open it, the way every other open here works."""
+        from nexusplm import document as doc
+        from nexusplm import state
+
+        client = Client()
+        answer = client.stage(object_id)
+        if not answer.get("success"):
+            reason = answer.get("error") or "That item could not be opened."
+            client.notify("%s — %s" % (label, reason), "warning")
+            _log("open from tree refused: %s" % reason)
+            return
+
+        path = answer.get("file_path")
+        if not path:
+            client.notify("%s has no document in the vault." % label, "warning")
+            return
+
+        # Which item this file is, before it is opened: every PLM command keys off the path, and
+        # a staged file opened without writing that down is one on which they all then refuse.
+        state.remember(path, object_id, object_id=object_id)
+        doc.open_staged(self.ctx, path)
+        _log("opened %s from the tree as %s" % (path, object_id))
+        self.refresh()
 
     def treeExpanding(self, event):
         pass
