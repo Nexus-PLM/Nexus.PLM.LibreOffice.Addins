@@ -72,6 +72,28 @@ def headline(state, has_document=True):
     return state.get("part_number") or ABSENT
 
 
+#: The disclosure marks on the document section's header. Text, not icons: a UNO button takes a
+#: label and nothing else, and these read the same on every platform the add-in runs on.
+OPEN_MARK = "▾"     # ▾
+CLOSED_MARK = "▸"   # ▸
+
+#: The document half starts folded. The navigator is what the panel is mostly for — the rows
+#: below repeat what the document itself already shows, and the tree is the part that needs the
+#: height. Opening the section is one click, and it stays open for as long as the panel lives.
+STARTS_COLLAPSED = True
+
+
+def document_header(state, collapsed, has_document=True):
+    """The document section's header line: its disclosure mark, and what is behind it.
+
+    Folded, this is the only thing naming the document, so it carries the headline rather than a
+    fixed word like "Document" — a collapsed panel that cannot tell you which item you have open
+    would be worth less than no panel.
+    """
+    mark = CLOSED_MARK if collapsed else OPEN_MARK
+    return "%s %s" % (mark, headline(state, has_document))
+
+
 #: Each button: (label, the command in nexus_commands.py, when it may be pressed).
 #: The rule matches the toolbar's, because a user who sees a command in two places and finds it
 #: enabled in one of them has found a bug, whichever one is right.

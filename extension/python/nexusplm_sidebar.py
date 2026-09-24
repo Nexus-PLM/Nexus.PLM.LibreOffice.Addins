@@ -75,7 +75,20 @@ def _log(message):
         pass
 
 
-class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
+class _Clicked(unohelper.Base, XActionListener):
+    """One control's action listener, holding what that control does."""
+
+    def __init__(self, run):
+        self._run = run
+
+    def actionPerformed(self, event):
+        self._run()
+
+    def disposing(self, event):
+        pass
+
+
+class Panel(unohelper.Base, XUIElement, XWindowListener,
             XTreeExpansionListener, XMouseListener):
     """One sidebar panel: the window, its contents, and what its buttons do."""
 
@@ -91,6 +104,9 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         self._tree = None
         self._tree_heading = None
         self._tree_data = None
+        self._collapsed = panel_rules.STARTS_COLLAPSED
+        #: Button listeners, held so they are not collected out from under their buttons.
+        self._listeners = []
         #: Folders whose items have been fetched, so reopening one does not append them twice.
         self._loaded_folders = set()
         self.window = None
@@ -148,8 +164,11 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         container.setModel(model)
         container.createPeer(self.toolkit, parent)
 
-        self._headline = self._control("FixedText", "headline", container,
-                                       Label="", MultiLine=True)
+        # A button, not a label: the document half folds away behind it, and a button is the
+        # one control the toolkit offers that says "this can be clicked" and takes the keyboard.
+        self._headline = self._control("Button", "headline", container,
+                                       Label="", FocusOnClick=False)
+        self._listen(self._headline, self._toggle_document)
 
         for index, (label, _key) in enumerate(panel_rules.ROWS):
             self._control("FixedText", "label%d" % index, container, Label=label + ":")
@@ -159,7 +178,7 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         for label, command, _rule in panel_rules.BUTTONS:
             button = self._control("Button", "btn_" + command, container,
                                    Label=label, Enabled=False)
-            button.addActionListener(self)
+            self._listen(button, lambda c=command: self._run_command(c))
             self._buttons[command] = button
 
         self._tree_heading = self._control("FixedText", "tree_heading", container,
@@ -208,21 +227,32 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         width = max(size.Width, margin * 4)
         y = margin
 
-        self._headline.setPosSize(margin, y, width - 2 * margin, row * 2, _POSSIZE)
-        y += row * 2 + gap * 2
+        self._headline.setPosSize(margin, y, width - 2 * margin, button_h, _POSSIZE)
+        y += button_h + gap
 
+        # Folded, the rows and the buttons are hidden and not laid out at all: the tree then
+        # starts straight under the header and takes the whole panel, which is the point of it.
         container = self.window
         for index, (_label, _key) in enumerate(panel_rules.ROWS):
-            container.getControl("label%d" % index).setPosSize(
-                margin, y, label_w, row, _POSSIZE)
-            container.getControl("value%d" % index).setPosSize(
-                margin + label_w, y, max(width - margin * 2 - label_w, margin), row, _POSSIZE)
+            label = container.getControl("label%d" % index)
+            value = container.getControl("value%d" % index)
+            label.setVisible(not self._collapsed)
+            value.setVisible(not self._collapsed)
+            if self._collapsed:
+                continue
+            label.setPosSize(margin, y, label_w, row, _POSSIZE)
+            value.setPosSize(margin + label_w, y,
+                             max(width - margin * 2 - label_w, margin), row, _POSSIZE)
             y += row + gap
 
-        y += gap * 2
+        if not self._collapsed:
+            y += gap * 2
         for _label, command, _rule in panel_rules.BUTTONS:
-            self._buttons[command].setPosSize(
-                margin, y, width - 2 * margin, button_h, _POSSIZE)
+            button = self._buttons[command]
+            button.setVisible(not self._collapsed)
+            if self._collapsed:
+                continue
+            button.setPosSize(margin, y, width - 2 * margin, button_h, _POSSIZE)
             y += button_h + gap
 
         # The tree takes whatever height is left below the buttons. The sidebar can be dragged
@@ -240,8 +270,8 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
         """Ask the service about the document in front of us and show the answer."""
         try:
             document, state, user = self._current()
-            self._headline.setText(
-                panel_rules.headline(state, has_document=document is not None))
+            self._headline.setLabel(panel_rules.document_header(
+                state, self._collapsed, has_document=document is not None))
             for label, value in panel_rules.rows_for(state):
                 self._value_controls[label].setText(value)
 
@@ -440,17 +470,37 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
 
     # -- what its buttons do -----------------------------------------------
 
-    def actionPerformed(self, event):
+    def _listen(self, control, run):
+        """Give a control its own listener, and keep a reference to it.
+
+        A listener per control, rather than one listener working out which control an event came
+        from. Both of the obvious ways to do the latter fail here, measured: pyuno hands back a
+        fresh proxy for the same UNO object on every ``getModel()``, so ``is`` between two of them
+        is false even for a single control; and ``Tag``, the obvious place to label a model, is
+        not a property of ``UnoControlButtonModel`` — ``setPropertyValue`` accepted it and reading
+        it back threw ``UnknownPropertyException``.
+
+        Nothing else holds the listener, and a collected one stops its button working silently.
+        """
+        listener = _Clicked(run)
+        self._listeners.append(listener)
+        control.addActionListener(listener)
+
+    def _toggle_document(self):
+        """Fold the document half away, or bring it back."""
+        self._collapsed = not self._collapsed
+        # Laid out again before repainting, or the tree keeps the height it had and the rows
+        # land on top of it.
+        self._lay_out(self.window.getPosSize())
+        self.refresh()
+
+    def _run_command(self, command):
         """Dispatch the same script URL the toolbar and menu use, so behaviour cannot diverge."""
         try:
-            source = event.Source.getModel()
-            for command, button in self._buttons.items():
-                if button.getModel() is source:
-                    self._dispatch(command)
-                    self.refresh()
-                    return
+            self._dispatch(command)
+            self.refresh()
         except Exception:
-            _log("button failed\n%s" % traceback.format_exc())
+            _log("button %s failed\n%s" % (command, traceback.format_exc()))
 
     def _dispatch(self, command):
         transformer = self.smgr.createInstanceWithContext(

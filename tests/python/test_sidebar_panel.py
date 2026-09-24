@@ -136,5 +136,36 @@ class WhatTheButtonsAre(unittest.TestCase):
                           "the panel offers %s, which nexus_commands.py does not export" % command)
 
 
+class DocumentHeader(unittest.TestCase):
+    """The document half folds away; its header is what is left when it is folded."""
+
+    def test_folded_it_still_names_the_item(self):
+        # The only thing on screen naming the open document, so a fixed word like "Document"
+        # would make a collapsed panel worth less than no panel.
+        state = {"status": "checked_in", "part_number": "LTD-00000009-ODT"}
+
+        self.assertEqual("▸ LTD-00000009-ODT",
+                         panel.document_header(state, collapsed=True))
+
+    def test_open_it_shows_the_other_mark(self):
+        state = {"status": "checked_in", "part_number": "LTD-00000009-ODT"}
+
+        self.assertEqual("▾ LTD-00000009-ODT",
+                         panel.document_header(state, collapsed=False))
+
+    def test_a_document_plm_does_not_know_says_so_in_the_header(self):
+        self.assertEqual("▸ " + panel.NOT_IN_PLM,
+                         panel.document_header(None, collapsed=True))
+
+    def test_no_document_at_all_says_so_in_the_header(self):
+        self.assertEqual("▸ " + panel.NO_DOCUMENT,
+                         panel.document_header(None, collapsed=True, has_document=False))
+
+    def test_it_starts_folded(self):
+        # The navigator is what the panel is mostly for; the rows repeat what the document
+        # already shows. Marc asked for this directly.
+        self.assertTrue(panel.STARTS_COLLAPSED)
+
+
 if __name__ == "__main__":
     unittest.main()
