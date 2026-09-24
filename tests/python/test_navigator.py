@@ -102,6 +102,26 @@ class ItemLabel(unittest.TestCase):
     def test_an_item_with_no_part_number_says_so(self):
         self.assertEqual("(no part number)", navigator.item_label({}))
 
+class WantsChildren(unittest.TestCase):
+    """Whether a folder offers an expand handle — items are fetched only when one is opened."""
+
+    def test_a_folder_holding_items_is_expandable_even_with_no_subfolders(self):
+        roots = navigator.tree_from([_folder("f", "My Working", count=10, system=True)])
+
+        self.assertTrue(navigator.wants_children(roots[0]))
+
+    def test_a_folder_with_subfolders_but_no_items_is_expandable(self):
+        roots = navigator.tree_from(LIVE_SHAPE)
+        recently = [n for n in roots if n["folder"]["folder_id"] == "sys-recently-modified"][0]
+
+        self.assertEqual(0, recently["folder"]["object_count"])
+        self.assertTrue(navigator.wants_children(recently))
+
+    def test_an_empty_folder_offers_nothing_to_open(self):
+        roots = navigator.tree_from([_folder("f", "Empty", count=0)])
+
+        self.assertFalse(navigator.wants_children(roots[0]))
+
 
 if __name__ == "__main__":
     unittest.main()

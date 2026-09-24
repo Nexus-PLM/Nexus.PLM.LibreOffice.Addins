@@ -64,6 +64,18 @@ def flatten(roots):
     return out
 
 
+def wants_children(node):
+    """Whether this folder's node should offer an expand handle.
+
+    A folder with no subfolders can still hold items, and the items are only fetched when the
+    user expands the folder — one call per folder opened, rather than one per folder in the
+    vault at load time. So the handle has to be offered for anything the server says is not
+    empty, not only for folders that already have children in hand.
+    """
+    folder = node.get("folder") or {}
+    return bool(node.get("children")) or bool(folder.get("object_count") or 0)
+
+
 def item_label(item):
     """One item's line under its folder: the part number, and its revision when it has one."""
     part = (item.get("part_number") or "").strip() or "(no part number)"

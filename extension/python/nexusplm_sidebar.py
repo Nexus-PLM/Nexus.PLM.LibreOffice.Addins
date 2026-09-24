@@ -24,6 +24,7 @@ import traceback
 import uno
 import unohelper
 from com.sun.star.awt import XActionListener, XWindowListener, Rectangle, Size
+from com.sun.star.awt.tree import XTreeExpansionListener
 from com.sun.star.util import MeasureUnit
 from com.sun.star.lang import XServiceInfo
 from com.sun.star.ui import XUIElement, XUIElementFactory
@@ -73,7 +74,8 @@ def _log(message):
         pass
 
 
-class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
+class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
+            XTreeExpansionListener):
     """One sidebar panel: the window, its contents, and what its buttons do."""
 
     def __init__(self, ctx, frame, parent, resource_url):
@@ -88,6 +90,8 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
         self._tree = None
         self._tree_heading = None
         self._tree_data = None
+        #: Folders whose items have been fetched, so reopening one does not append them twice.
+        self._loaded_folders = set()
         self.window = None
         self._sx = self._sy = 1.0
         self._build(parent)
@@ -129,6 +133,7 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             "com.sun.star.awt.tree.TreeControl", self.ctx)
         control.setModel(model)
         container.addControl(name, control)
+        control.addTreeExpansionListener(self)
         return control
 
     def _build(self, parent):
@@ -262,6 +267,8 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             # place, so the panel drew the whole vault twice after its second refresh.
             self._tree_data = self.smgr.createInstanceWithContext(
                 "com.sun.star.awt.tree.MutableTreeDataModel", self.ctx)
+            # A reload is a new set of nodes, so what was fetched into the old ones is gone too.
+            self._loaded_folders = set()
             root = self._tree_data.createNode("Nexus PLM", True)
             for node in roots:
                 root.appendChild(self._node_for(node))
@@ -287,11 +294,63 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             _log("tree failed\n%s" % traceback.format_exc())
 
     def _node_for(self, node):
-        """One folder as a tree node, with its children under it."""
-        made = self._tree_data.createNode(node["label"], bool(node["children"]))
+        """One folder as a tree node, with its subfolders under it.
+
+        Its items are not fetched here. A folder carries its ``folder_id`` as the node's data
+        value so that expanding it can ask for them — one call per folder the user actually
+        opens, rather than one per folder in the vault every time the panel draws.
+        """
+        made = self._tree_data.createNode(node["label"],
+                                          navigator_rules.wants_children(node))
+        # pyuno exposes this as an attribute, not a setter: setDataValue does not exist.
+        made.DataValue = node["id"]
         for child in node["children"]:
             made.appendChild(self._node_for(child))
         return made
+
+    # -- XTreeExpansionListener --------------------------------------------
+
+    def requestChildNodes(self, event):
+        """Fill a folder with what is in it, the first time it is opened.
+
+        Only fires for a node built with children "on demand", which is every folder the server
+        said is not empty.
+        """
+        try:
+            node = event.Node
+            folder_id = node.DataValue
+            if not folder_id or folder_id in self._loaded_folders:
+                return
+            self._loaded_folders.add(folder_id)
+
+            answer = Client().folder_items(folder_id)
+            items = answer.get("items") or []
+            for item in items:
+                child = self._tree_data.createNode(navigator_rules.item_label(item), False)
+                # The item's own id, so opening it later needs no second lookup. A folder's
+                # data value is its folder id and an item's is its object id; they never
+                # collide, because a folder is never asked to open.
+                child.DataValue = item.get("plm_object_id") or ""
+                node.appendChild(child)
+
+            if not items:
+                # Say so rather than opening onto nothing: an empty branch reads as a failed
+                # load, and the count beside the folder promised something was there.
+                node.appendChild(self._tree_data.createNode("(empty)", False))
+        except Exception:
+            _log("folder contents failed\n%s" % traceback.format_exc())
+
+    def treeExpanding(self, event):
+        pass
+
+    def treeCollapsing(self, event):
+        pass
+
+    def treeExpanded(self, event):
+        pass
+
+    def treeCollapsed(self, event):
+        pass
 
     def _current(self):
         """(document, state answer, signed-in user) for whatever is in front of the panel."""
