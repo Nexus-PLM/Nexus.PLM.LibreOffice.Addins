@@ -17,16 +17,20 @@ the same windows, wording and behaviour appear in LibreOffice, Word, Excel, Powe
 
 ## What it does
 
-Twenty-three commands, on a toolbar, a menu, and stacked dropdowns:
+Twenty-two commands, on a toolbar, a menu, and stacked dropdowns:
 
 | | |
 |---|---|
 | **Documents** | New from Template · Open from PLM · Search |
 | **Saving** | Save to PLM · Save As New Item · Save As Existing Item |
-| **Lifecycle** | Check Out · Check In · Release · Revise · Change Ownership |
+| **Lifecycle** | Check Out · Check In · Revise · Change Ownership |
 | **Workflow** | My Worklist · New Workflow |
 | **Values** | Properties · Edit Values · Refresh Values · Reload Document |
 | **Session** | Sign In · Sign Out · Current Settings · Connection Status · Help · About |
+
+There is deliberately no Release. A revision reaches Released only by running a workflow, which
+New Workflow starts: the workflow's Status node sets the lifecycle through the Engine, with the
+approvals that workflow declares. The web client has never offered a Release action either.
 
 A document created from a PLM template opens filled in — part number, revision, description,
 whoever created it and when — because the type says which PLM attribute feeds which document field.
