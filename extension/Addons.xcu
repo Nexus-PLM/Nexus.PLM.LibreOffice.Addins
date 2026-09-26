@@ -314,13 +314,6 @@
           <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/RefreshValues_26.png</value></prop>
         </node>
       </node>
-      <node oor:name="i13" oor:op="replace">
-        <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$release?language=Python&amp;location=user:uno_packages</value></prop>
-        <node oor:name="UserDefinedImages">
-          <prop oor:name="ImageSmallURL" oor:type="xs:string"><value>%origin%/icons/Release_16.png</value></prop>
-          <prop oor:name="ImageBigURL" oor:type="xs:string"><value>%origin%/icons/Release_26.png</value></prop>
-        </node>
-      </node>
       <node oor:name="i14" oor:op="replace">
         <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$reload_document?language=Python&amp;location=user:uno_packages</value></prop>
         <node oor:name="UserDefinedImages">
@@ -497,11 +490,6 @@
           <node oor:name="m21" oor:op="replace">
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Check ~In...</value></prop>
             <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$check_in?language=Python&amp;location=user:uno_packages</value></prop>
-            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
-          </node>
-          <node oor:name="m22" oor:op="replace">
-            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-GB">Release</value></prop>
-            <prop oor:name="URL" oor:type="xs:string"><value>vnd.sun.star.script:NexusPLM.oxt|python|nexus_commands.py$release?language=Python&amp;location=user:uno_packages</value></prop>
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
           </node>
           <node oor:name="m23" oor:op="replace">

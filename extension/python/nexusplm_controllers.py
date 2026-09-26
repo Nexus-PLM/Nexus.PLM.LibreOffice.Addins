@@ -55,7 +55,9 @@ STACKS = {
         ("Check Out", "check_out", "CheckOut"),
         ("Check In...", "check_in", "CheckIn"),
         None,
-        ("Release", "release", "Release"),
+        #: No Release: a revision reaches Released only by running a workflow (see the Workflow
+        #: stack). The command wrote the lifecycle status straight onto the revision, going around
+        #: the approvals the workflow declares.
         ("Revise", "revise", "Revise"),
         None,
         ("Change Ownership...", "change_owner", "ChangeOwner"),
