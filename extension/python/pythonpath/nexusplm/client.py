@@ -198,9 +198,6 @@ class Client:
             "saved_unsaved_changes": saved_unsaved_changes,
         })
 
-    def release(self, item_id):
-        return self._post("/plm/release", {"item_id": item_id}, timeout=DIALOG_TIMEOUT)
-
     def revise(self, item_id, hwnd=0):
         """Creates the next revision. Answers the new item's id, revision and staged file.
 

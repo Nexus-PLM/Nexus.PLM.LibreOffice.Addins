@@ -388,20 +388,6 @@ def check_in(*_args):
         _refused(client, answer, "Check In")
 
 
-@_command("Release")
-def release(*_args):
-    """Promotes the revision to Released."""
-    client = _client()
-    _context, _document, path, _hwnd = _here()
-    item_id = _require_item(client, path)
-    if item_id is None:
-        return
-
-    answer = client.release(item_id)
-    if not answer.get("success"):
-        _refused(client, answer, "Release")
-
-
 @_command("Revise")
 def revise(*_args):
     """Creates the next revision from a released one and opens it."""
@@ -583,7 +569,7 @@ def connection_status(*_args):
 g_exportedScripts = (
     sign_in, sign_out,
     new_from_template, open_from_plm, search, save_to_plm, save_as_new, save_as_existing,
-    check_out, check_in, release, revise, change_owner,
+    check_out, check_in, revise, change_owner,
     worklist, new_workflow,
     properties, edit_values, refresh_values, reload_document,
     settings, about, help_site, connection_status,
