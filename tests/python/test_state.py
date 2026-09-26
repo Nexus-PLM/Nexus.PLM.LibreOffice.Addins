@@ -40,12 +40,26 @@ class TheDocumentMap(unittest.TestCase):
         self.assertEqual("LTD-00000002-ODT",
                          self.state.known(r"C:\Nexus\Staging\LTD-00000002-ODT.odt")["part_number"])
 
-    def test_the_same_file_written_differently_is_the_same_file(self):
-        """Windows paths differ in case and in separators; the document does not."""
+    @unittest.skipUnless(os.name == "nt", "case and separator folding is Windows' rule, not Linux's")
+    def test_the_same_file_written_differently_is_the_same_file_on_windows(self):
+        """Windows paths differ in case and in separators; the document does not.
+
+        Deliberately Windows-only. The map keys on ``os.path.normcase``, which folds case and
+        separators on Windows and is a no-op elsewhere - correctly, because a Linux filesystem
+        really does treat two spellings that differ in case as two different files. Asserting the
+        Windows rule on every platform made this fail in CI against an add-in behaving properly.
+        """
         self.state.remember(r"C:\Nexus\Staging\LTD-1.odt", "rev-uuid")
 
         self.assertEqual("rev-uuid", self.state.item_of(r"c:\nexus\staging\ltd-1.odt"))
         self.assertEqual("rev-uuid", self.state.item_of("C:/Nexus/Staging/LTD-1.odt"))
+
+    def test_a_relative_path_is_the_same_file_as_its_absolute_one(self):
+        """The half of that rule which holds everywhere: the map keys on an absolute path."""
+        absolute = os.path.abspath(os.path.join("nexus", "staging", "LTD-2.odt"))
+        self.state.remember(absolute, "rev-two")
+
+        self.assertEqual("rev-two", self.state.item_of(os.path.join("nexus", "staging", "LTD-2.odt")))
 
     def test_a_file_nobody_has_registered(self):
         self.assertIsNone(self.state.item_of(r"C:\Users\someone\Documents\notes.odt"))
