@@ -33,6 +33,10 @@ DOCUMENT_MIME_TYPES = {
 #: Where a package keeps its user-defined properties.
 META = "meta.xml"
 
+#: Where a package keeps its body — and, in a presentation or a drawing, the named shapes that
+#: are the only place a value can be SEEN. A user field is in File > Properties; a slide is not.
+CONTENT = "content.xml"
+
 #: Where a package says what each of its parts is — including, in its root entry, what the
 #: package itself is. ODF requires that to agree with ``mimetype``.
 MANIFEST = "META-INF/manifest.xml"
@@ -50,6 +54,12 @@ def mime_type_of(path):
         return None
 
 
+class RewriteError(Exception):
+    """The staged file could not be rewritten. It is untouched — the office still opens what it
+    would have opened before — but what it opens is not what PLM meant it to be, and that used to
+    happen in silence: the failure looked exactly like a template whose fields did not match."""
+
+
 def make_document(path, values=None):
     """Makes the staged file the document PLM means it to be. Returns whether it changed.
 
@@ -61,9 +71,12 @@ def make_document(path, values=None):
       making an untitled copy and leaving the file alone.
     * PLM's values are written in. They used to be written into the open document instead, which
       works only for as long as nothing asks the file itself what it holds — and Check In, a
-      backup, a colleague opening the staged path, all do.
+      backup, a colleague opening the staged path, all do. Into the user fields, which every
+      application carries, and into the named frames and shapes of the body, which are the only
+      place a value shows on a slide or a drawing page.
 
-    A file that needs neither is not rewritten at all.
+    A file that needs neither is not rewritten at all. A file that needed rewriting and could not
+    be raises :class:`RewriteError`, with the file left as it was.
     """
     values = values or {}
     mime_type = mime_type_of(path)
@@ -95,18 +108,21 @@ def make_document(path, values=None):
                     content = _manifest_says(content, mime_type, document_type)
                 elif entry.filename == META and values:
                     content = _meta_holds(content, values)
+                elif entry.filename == CONTENT and values:
+                    content = _content_holds(content, values)
 
                 target.writestr(entry, content)
         shutil.move(temporary, path)
         return True
-    except Exception:
+    except Exception as trouble:
         try:
             os.unlink(temporary)
         except Exception:
             pass
         # The file is untouched, so the office still opens something — what it opened before this
-        # was written — rather than nothing at all.
-        return False
+        # was written — rather than nothing at all. But it is not what PLM meant, so the caller is
+        # told; returning False here made this indistinguishable from a file that needed nothing.
+        raise RewriteError("%s: %s" % (os.path.basename(path), trouble))
 
 
 def _meta_holds(meta, values):
@@ -198,6 +214,124 @@ def _lexical(kind, text):
 
 def _escaped(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+# ── named shapes ────────────────────────────────────────────────────────────
+# The same rule the server's LibreOfficeTemplateConnector keeps: a frame or shape somebody named
+# (``draw:name``) is a field; an unnamed one is not. Measured there against files LibreOffice 26.2
+# wrote itself: an untouched placeholder carries no name attribute at all, so a name existing IS
+# the signal, and no list of suspicious words is needed. The text goes into the first paragraph,
+# inside its first span so the author's font, size and colour survive; whatever follows is the old
+# value's remainder and goes.
+#
+# Text, not a parser: LibreOffice's content.xml declares thirty-odd namespaces on its root, and
+# the standard library's ElementTree rewrites every prefix it was not told about, which is the
+# quickest way to a file that opens as "(repaired document)". meta.xml is handled the same way,
+# for the same reason.
+
+#: The opening tag of a frame, custom shape or text box that carries a name. Not self-closing:
+#: a shape with no body has no text to write.
+_NAMED_SHAPE = re.compile(
+    r'<draw:(?P<tag>frame|custom-shape|text-box)\b[^>]*?\bdraw:name="(?P<name>[^"]*)"[^>]*?(?<!/)>')
+
+#: A text box's opening tag, inside a frame. Its name, when it has one of its own, is not looked
+#: at here: the frame's is the one the server reads.
+_TEXT_BOX = re.compile(r'<draw:text-box\b[^>]*?(?<!/)>')
+
+#: One paragraph, in both the shapes it comes in. Paragraphs never nest, so non-greedy is exact.
+_PARAGRAPH = re.compile(r'<text:p\b(?P<attributes>[^>]*?)(?:/>|>(?P<inner>.*?)</text:p>)', re.DOTALL)
+
+#: One span, likewise.
+_SPAN = re.compile(r'<text:span\b(?P<attributes>[^>]*?)(?:/>|>.*?</text:span>)', re.DOTALL)
+
+
+def _content_holds(content, values):
+    """PLM's values, written into the named frames and shapes the body already has."""
+    text = content.decode("utf-8")
+    wanted = {name.lower(): value for name, value in values.items()}
+
+    out = []
+    position = 0
+    while True:
+        match = _NAMED_SHAPE.search(text, position)
+        if match is None:
+            break
+
+        end = _element_end(text, match.group("tag"), match.end())
+        incoming = wanted.get(match.group("name").lower())
+        if end < 0 or incoming is None:
+            out.append(text[position:match.end()])
+            position = match.end()
+            continue
+
+        close = "</draw:%s>" % match.group("tag")
+        inner = text[match.end():end - len(close)]
+        out.append(text[position:match.end()])
+        out.append(_shape_holds(match.group("tag"), inner, _escaped(str(incoming))))
+        out.append(close)
+        position = end
+
+    out.append(text[position:])
+    return "".join(out).encode("utf-8")
+
+
+def _shape_holds(tag, inner, escaped):
+    """A shape's body with its text replaced. A frame keeps its text in a text box; the box is
+    where the paragraphs are, and a frame with no box — an image — has no text to write."""
+    if tag != "frame":
+        return _paragraphs_hold(inner, escaped)
+
+    box = _TEXT_BOX.search(inner)
+    if box is None:
+        return inner
+    box_end = _element_end(inner, "text-box", box.end())
+    if box_end < 0:
+        return inner
+    close = "</draw:text-box>"
+    return (inner[:box.end()]
+            + _paragraphs_hold(inner[box.end():box_end - len(close)], escaped)
+            + inner[box_end - len(close):])
+
+
+def _paragraphs_hold(body, escaped):
+    """The first paragraph carries the value, in its first span when it has one; the rest go."""
+    paragraphs = list(_PARAGRAPH.finditer(body))
+    if not paragraphs:
+        return body + "<text:p>" + escaped + "</text:p>"
+
+    first = paragraphs[0]
+    attributes = first.group("attributes").rstrip().rstrip("/")
+    inner = first.group("inner")
+    span = _SPAN.search(inner) if inner else None
+    if span is None:
+        replaced = "<text:p%s>%s</text:p>" % (attributes, escaped)
+    else:
+        span_attributes = span.group("attributes").rstrip().rstrip("/")
+        replaced = "<text:p%s><text:span%s>%s</text:span></text:p>" % (attributes, span_attributes, escaped)
+
+    rest = _PARAGRAPH.sub("", body[first.end():])
+    return body[:first.start()] + replaced + rest
+
+
+def _element_end(text, tag, start):
+    """Where the ``draw:<tag>`` element opened just before ``start`` ends — the index after its
+    closing tag — counting nested elements of the same name, or -1 when it never closes."""
+    opening = re.compile(r'<draw:%s\b[^>]*?(?<!/)>' % re.escape(tag))
+    closing = "</draw:%s>" % tag
+    depth = 1
+    position = start
+    while depth:
+        close_at = text.find(closing, position)
+        if close_at < 0:
+            return -1
+        nested = opening.search(text, position, close_at)
+        if nested is not None:
+            depth += 1
+            position = nested.end()
+        else:
+            depth -= 1
+            position = close_at + len(closing)
+    return position
 
 
 def _manifest_says(manifest, was, now):

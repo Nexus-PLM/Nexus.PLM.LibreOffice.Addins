@@ -140,6 +140,21 @@ wrong thing.
 once it is open depend on a later save happening; the file on disk is what Check In uploads, what a
 backup captures, and what a colleague opens.
 
+**A value has to be somewhere you can see it.** Every application carries user fields, but only
+Writer can show one in the body and only Calc can show one in a cell; a slide, a drawing page and
+a formula have nothing that displays a user field. So the add-in writes, by the same rule as the
+server's connector, into **named frames and shapes** as well — in the staged file and in the
+document on screen — and the name is the field. Name a text box `NXPartNumber` in Impress or Draw
+(Format ▸ Name…) and the part number appears in it; an unnamed box is not a field, because
+LibreOffice stores no name on a shape nobody named. The text goes into the first paragraph, inside
+its first run, so the font, size and colour the author chose survive. Math has neither shapes nor
+frames, so its values live in File ▸ Properties only.
+
+**A staged file that could not be rewritten is said, not opened in silence.** It used to answer
+the same `False` as "nothing needed doing", so a locked file opened as an untitled copy with no
+word of why. Now the user is told, the cause is in the add-in log, and the file opens as it was
+staged with the values written into the open document instead.
+
 **A template is not a document.** A file staged from a type's template still says it is a template
 — in its `mimetype` *and* in its manifest — and an office opens a template by making an untitled
 copy and leaving the file alone. Both declarations are corrected before anything opens it.

@@ -23,6 +23,7 @@ import webbrowser
 # ``__file__`` only afterwards — at import time the name does not exist at all.
 from nexusplm import document as doc
 from nexusplm import identity
+from nexusplm import odf
 from nexusplm import state
 from nexusplm.client import Client, ServiceUnavailable
 
@@ -184,10 +185,22 @@ def _open_with_values(context, client, answer, command):
     # a later save happening. The open document is written too, so a document already on screen
     # shows them without being reloaded.
     values = answer.get("attribute_mappings") or {}
-    opened = doc.open_staged(context, staged, values)
+    try:
+        opened = doc.open_staged(context, staged, values)
+    except odf.RewriteError as trouble:
+        # The file is untouched, and until now nobody was told: a rewrite that failed looked
+        # exactly like a template whose fields did not match, and the user was left with a file
+        # that said "template" and a screen that said nothing. Say it, then open the file as it
+        # was staged - the values still go into the document on screen below, and reach the file
+        # when it is saved.
+        _log("%s: could not rewrite the staged file '%s': %s" % (command, staged, trouble))
+        _say(client, "Nexus PLM could not write its values into '%s' before opening it (see the "
+                     "add-in log). They were written into the open document instead and are "
+                     "saved with it." % os.path.basename(staged), "warning")
+        opened = doc.open_staged(context, staged, values, prepare=False)
 
     # And into the document on screen, which a file already open would not otherwise show.
-    written = doc.write_user_fields(opened, values)
+    written = doc.write_fields(opened, values)
     _log("%s: opened '%s' as %s, wrote %d field(s)"
          % (command, staged, state.item_of(staged) or "an unknown item", written))
     return opened
@@ -296,7 +309,7 @@ def save_as_new(*_args):
     if doc.is_modified(document) and not doc.save(document):
         return _say(client, "The document could not be saved, so it was not registered.", "warning")
 
-    answer = client.save_as_new(path, hwnd, attributes=doc.user_fields(document),
+    answer = client.save_as_new(path, hwnd, attributes=doc.fields(document),
                                 file_extensions=doc.OPENABLE_EXTENSIONS)
     if not answer.get("success"):
         return _refused(client, answer, "Save As")
@@ -306,7 +319,7 @@ def save_as_new(*_args):
     _remember(path, answer)
 
     # Registering allocates the number PLM chose; the document should show it.
-    doc.write_user_fields(document, answer.get("attribute_mappings") or {})
+    doc.write_fields(document, answer.get("attribute_mappings") or {})
 
 
 @_command("SaveAsExisting")
@@ -392,7 +405,7 @@ def revise(*_args):
         # through the map, and the map still held the old one.
         _remember(path, answer)
 
-        written = doc.write_user_fields(document, answer.get("attribute_mappings") or {})
+        written = doc.write_fields(document, answer.get("attribute_mappings") or {})
         _log("Revise: no staged file for this item, wrote %d field(s) into the open document"
              % written)
 
@@ -460,11 +473,11 @@ def edit_values(*_args):
     if item_id is None:
         return
 
-    answer = client.edit_values(item_id, hwnd, doc.user_fields(document))
+    answer = client.edit_values(item_id, hwnd, doc.fields(document))
     if not answer.get("success"):
         return _refused(client, answer, "Edit Values")
     if answer.get("saved"):
-        doc.write_user_fields(document, answer.get("attribute_mappings") or {})
+        doc.write_fields(document, answer.get("attribute_mappings") or {})
 
 
 @_command("RefreshValues")
@@ -480,7 +493,7 @@ def refresh_values(*_args):
     if not answer.get("success"):
         return _refused(client, answer, "Refresh Values")
 
-    written = doc.write_user_fields(document, answer.get("attribute_mappings") or {})
+    written = doc.write_fields(document, answer.get("attribute_mappings") or {})
     if written == 0:
         # Worth saying: a document whose template names none of the attributes looks exactly
         # like a command that silently did nothing.
