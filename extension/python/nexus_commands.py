@@ -22,6 +22,7 @@ import webbrowser
 # It is the only way to find the package, because the provider exec()s this module and sets
 # ``__file__`` only afterwards — at import time the name does not exist at all.
 from nexusplm import document as doc
+from nexusplm import identity
 from nexusplm import state
 from nexusplm.client import Client, ServiceUnavailable
 
@@ -138,38 +139,16 @@ def _here():
 def _item_of(client, path):
     """The PLM item a document is, or ``None`` when it is not registered.
 
-    What this add-in wrote down when it last handled the file comes first, because asking the
-    service by path does not answer the question: ``/plm/state?file_path=`` searches the Engine for
-    an object carrying that path as an attribute, and on a live server that search finds nothing —
-    not for a document created seconds earlier, not for one checked in months ago. The path is
-    still asked about when nothing is remembered, so a path the service can resolve still works.
+    The rule itself lives in ``nexusplm.identity`` because the sidebar needs the same one, and when
+    it had its own the two disagreed: a document this add-in had just registered showed a working
+    toolbar beside a panel insisting it was not in PLM.
     """
-    if not path:
-        return None
-
-    remembered = state.item_of(path)
-    if remembered:
-        # Confirm it with PLM rather than trusting the note: the item may have been deleted, and
-        # the answer carries the current status anyway.
-        answer = client.state(item_id=remembered)
-        if answer.get("success") and answer.get("item_id"):
-            return answer["item_id"]
-        state.forget(path)
-
-    answer = client.state(file_path=path)
-    if answer.get("success") and answer.get("item_id"):
-        _remember(path, answer)
-        return answer["item_id"]
-    return None
+    return identity.item_of(client, path)
 
 
 def _remember(path, answer):
     """Writes down which item a file is, from whatever the service just answered about it."""
-    item_id = answer.get("item_id") or answer.get("plm_object_id")
-    if path and item_id:
-        state.remember(path, item_id,
-                       part_number=answer.get("part_number"),
-                       object_id=answer.get("object_id") or answer.get("plm_object_id"))
+    identity.remember(path, answer)
 
 
 def _require_item(client, path):
