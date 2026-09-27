@@ -1,5 +1,14 @@
 name: Report workflow failure to project board
 
+# Files an issue when a workflow fails, and CLOSES it when the same workflow next passes on the
+# same branch.
+#
+# The closing half is not a nicety. Without it every failure left an issue that nothing ever
+# resolved, so the boards filled with notices about runs that had been fixed months earlier: 103
+# open across the repositories by September 2026, every one of them stale, and a real bug filed
+# among them would have been invisible. An issue here is a notification about a moment, not a
+# tracked piece of work, so the run that disproves it is what should close it.
+
 on:
   workflow_run:
     workflows: ["*"]
@@ -9,10 +18,13 @@ permissions: {}
 
 jobs:
   report:
+    # Both outcomes: one files, the other clears.
+    #
     # Only for runs of this repository's own branches. A failing pull request from a fork is the
     # contributor's to fix, and must not be able to file issues on the maintainers' board.
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.conclusion == 'failure' ||
+       github.event.workflow_run.conclusion == 'success') &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
@@ -43,17 +55,45 @@ jobs:
           const prefix = `Action failed: ${run.name} on ${branch}`;
           const title  = `${prefix} (${sha})`;
 
+          // The repository's open issues. listForRepo also returns pull requests, which are issues
+          // to this API and are not what any of this is about.
+          const { data: everything } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            per_page: 100
+          });
+          const open = everything.filter(i => !i.pull_request);
+
+          // ---- the run passed: clear what its own failures filed --------------------------
+          if (run.conclusion === 'success') {
+            const resolved = open.filter(i => i.title.startsWith(prefix));
+            for (const issue of resolved) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Fixed: **${run.name}** passed on \`${branch}\` at \`${sha}\`. [View run](${run.html_url})`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              core.info(`Closed #${issue.number} — ${run.name} passes again on ${branch}`);
+            }
+            if (resolved.length === 0) core.info('Nothing open for this workflow and branch.');
+            return;
+          }
+
+          // ---- the run failed -------------------------------------------------------------
           // Deduplicate: if an open issue exists for this workflow+branch, comment instead
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-          const { data: existing } = await github.rest.issues.listForRepo({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            state: 'open',
-            per_page: 50
-          });
-          const dupe = existing.find(i =>
+          const dupe = open.find(i =>
             i.title.startsWith(prefix) && new Date(i.created_at) > sevenDaysAgo
           );
 
@@ -74,7 +114,9 @@ jobs:
             `Workflow **${run.name}** failed on branch \`${branch}\`.`,
             ``,
             `**Commit:** \`${sha}\` -- ${run.head_commit?.message?.split('\n')[0] || ''}`,
-            `**Run:** [View logs](${run.html_url})`
+            `**Run:** [View logs](${run.html_url})`,
+            ``,
+            `This closes itself when **${run.name}** next passes on \`${branch}\`.`
           ].join('\n');
 
           const { data: issue } = await github.rest.issues.create({
