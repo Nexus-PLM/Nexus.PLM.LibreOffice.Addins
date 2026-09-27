@@ -29,6 +29,7 @@ from com.sun.star.lang import XServiceInfo
 from com.sun.star.ui import XUIElement, XUIElementFactory
 from com.sun.star.ui.UIElementType import TOOLPANEL
 
+from nexusplm import identity
 from nexusplm import navigator as navigator_rules
 from nexusplm import panel as panel_rules
 from nexusplm.client import Client
@@ -307,7 +308,11 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             return document, None, None
 
         client = Client()
-        state = client.state(file_path=path)
+        # Through the shared rule, never by asking the service about the path alone: that resolves
+        # by the part number in the file NAME, so a document registered where it already sat -
+        # Save As New keeps its own name - never resolves, and this panel called it "not in PLM"
+        # while the toolbar worked perfectly on the very same document.
+        state = identity.state_of(client, path)
         try:
             user = (client.me() or {}).get("username")
         except Exception:
