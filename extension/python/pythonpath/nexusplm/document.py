@@ -100,18 +100,22 @@ def close_without_saving(document):
         pass
 
 
-def open_staged(context, path, values=None):
+def open_staged(context, path, values=None, prepare=True):
     """Opens a file the service staged, or brings it forward if it is already open.
 
     Opening a second copy of a file the user already has open is how "the document is already open"
     turns into two windows fighting over one path — and the add-in keys what it knows about a
     document on that path.
+
+    Raises :class:`odf.RewriteError` when the file needed preparing and could not be; the caller
+    decides what to tell the user, and may open it as it is with ``prepare=False``.
     """
     # Put the file right before anything opens it: a template body made into the document it
     # stands for, and PLM's values written in. Both have to happen while the file is closed — an
     # office opens a template by copying it, and a value written into the open document only
     # reaches the file if something later saves it.
-    odf.make_document(path, values)
+    if prepare:
+        odf.make_document(path, values)
 
     url = path_to_url(path)
 
@@ -290,6 +294,93 @@ def user_fields(document):
     except Exception:
         pass
     return values
+
+
+def named_shapes(document):
+    """Every frame or shape somebody named, in the document on screen.
+
+    The slides of a presentation and the pages of a drawing, and a text document's frames. A
+    shape's name is the field's name — the same rule the server's connector reads a closed file
+    by, so a value lands in the same place whether the document is open or not. An application
+    without draw pages or text frames simply contributes nothing.
+    """
+    found = []
+    try:
+        pages = document.getDrawPages()
+        for p in range(pages.getCount()):
+            page = pages.getByIndex(p)
+            for s in range(page.getCount()):
+                shape = page.getByIndex(s)
+                if getattr(shape, "Name", None):
+                    found.append(shape)
+    except Exception:
+        pass
+    try:
+        frames = document.getTextFrames()
+        for name in frames.getElementNames():
+            found.append(frames.getByName(name))
+    except Exception:
+        pass
+    return found
+
+
+def shape_texts(document):
+    """The named shapes' text, name to text — a shape that holds no text is left out."""
+    values = {}
+    for shape in named_shapes(document):
+        try:
+            values[str(shape.Name)] = str(shape.getString())
+        except Exception:
+            pass
+    return values
+
+
+def fields(document):
+    """Everything the document holds that PLM can drive: user fields, then named shapes.
+
+    A user field wins over a shape of the same name, as it does in the server's reader: it is the
+    one the document itself treats as a property, and the one every application can carry.
+    """
+    values = shape_texts(document)
+    values.update(user_fields(document))
+    return values
+
+
+def write_named_shapes(document, values):
+    """Writes PLM's values into the named frames and shapes the document already has.
+
+    A presentation or a drawing has no other place a value can be SEEN: a user field is in
+    File > Properties, a slide is on the screen. Only shapes the template names are written — a
+    shape nobody named is not a field — and a shape that holds no text (an image) refuses and is
+    left alone. Returns how many were written.
+    """
+    if not values:
+        return 0
+
+    wanted = {k.lower(): v for k, v in values.items()}
+    written = 0
+    for shape in named_shapes(document):
+        text = wanted.get(str(shape.Name).lower())
+        if text is None:
+            continue
+        try:
+            shape.setString("" if text is None else str(text))
+            written += 1
+        except Exception:
+            pass
+
+    if written:
+        try:
+            document.setModified(True)
+        except Exception:
+            pass
+    return written
+
+
+def write_fields(document, values):
+    """PLM's values into every field the document has — user fields and named shapes. Returns
+    how many were written, across both."""
+    return write_user_fields(document, values) + write_named_shapes(document, values)
 
 
 def typed_value(type_name, text):
