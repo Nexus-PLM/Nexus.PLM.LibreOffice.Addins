@@ -28,6 +28,7 @@ from com.sun.star.util import MeasureUnit
 from com.sun.star.lang import XServiceInfo
 from com.sun.star.ui import XUIElement, XUIElementFactory
 from com.sun.star.ui.UIElementType import TOOLPANEL
+from com.sun.star.awt.tree import XTreeExpansionListener
 
 from nexusplm import identity
 from nexusplm import navigator as navigator_rules
@@ -74,7 +75,8 @@ def _log(message):
         pass
 
 
-class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
+class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener,
+            XTreeExpansionListener):
     """One sidebar panel: the window, its contents, and what its buttons do."""
 
     def __init__(self, ctx, frame, parent, resource_url):
@@ -89,6 +91,11 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
         self._tree = None
         self._tree_heading = None
         self._tree_data = None
+        #: Folder id for each node that is one, so an expanded node can be looked up. Keyed by
+        #: the node itself; UNO nodes carry no identity of ours to hang this on.
+        self._folder_of = {}
+        #: Nodes whose contents have been fetched, so expanding one twice asks once.
+        self._loaded = set()
         self.window = None
         self._sx = self._sy = 1.0
         self._build(parent)
@@ -130,6 +137,10 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             "com.sun.star.awt.tree.TreeControl", self.ctx)
         control.setModel(model)
         container.addControl(name, control)
+        # A folder's documents are fetched when its handle is opened, not when the tree is built:
+        # listing every folder up front would be one request per folder on every refresh, against
+        # a vault the user mostly is not looking at.
+        control.addTreeExpansionListener(self)
         return control
 
     def _build(self, parent):
@@ -263,6 +274,9 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             # place, so the panel drew the whole vault twice after its second refresh.
             self._tree_data = self.smgr.createInstanceWithContext(
                 "com.sun.star.awt.tree.MutableTreeDataModel", self.ctx)
+            # The nodes these referred to belong to the model being replaced.
+            self._folder_of = {}
+            self._loaded = set()
             root = self._tree_data.createNode("Nexus PLM", True)
             for node in roots:
                 root.appendChild(self._node_for(node))
@@ -288,11 +302,61 @@ class Panel(unohelper.Base, XUIElement, XWindowListener, XActionListener):
             _log("tree failed\n%s" % traceback.format_exc())
 
     def _node_for(self, node):
-        """One folder as a tree node, with its children under it."""
-        made = self._tree_data.createNode(node["label"], bool(node["children"]))
+        """One folder as a tree node, with its sub-folders under it.
+
+        The second argument is "has children on demand", which is what draws the handle. A folder
+        holding only documents has no sub-folders, and passing bool(children) for it drew a leaf:
+        the count was on the label and there was no way to open it and see what it counted.
+        """
+        made = self._tree_data.createNode(
+            node["label"], navigator_rules.holds_anything(node))
+        self._folder_of[made] = node["id"]
         for child in node["children"]:
             made.appendChild(self._node_for(child))
         return made
+
+    # -- XTreeExpansionListener --------------------------------------------
+
+    def requestChildNodes(self, event):
+        """Fill a folder with its documents, the first time it is opened."""
+        node = event.Node
+        if node in self._loaded:
+            return
+        folder_id = self._folder_of.get(node)
+        if folder_id is None:
+            return
+        self._loaded.add(node)
+
+        try:
+            answer = Client().folder_items(folder_id)
+            items = answer.get("items") or []
+            if not answer.get("success"):
+                node.appendChild(self._tree_data.createNode(
+                    answer.get("error") or "Could not be listed", False))
+                return
+            if not items:
+                # Said, not left blank: an empty folder and a folder that failed to load look the
+                # same otherwise, and the count above says something should be here.
+                node.appendChild(self._tree_data.createNode("(empty)", False))
+                return
+            for item in items:
+                node.appendChild(self._tree_data.createNode(
+                    navigator_rules.item_label(item), False))
+        except Exception:
+            _log("folder %s failed to list\n%s" % (folder_id, traceback.format_exc()))
+            node.appendChild(self._tree_data.createNode("Could not be listed", False))
+
+    def treeExpanding(self, event):
+        pass
+
+    def treeCollapsing(self, event):
+        pass
+
+    def treeExpanded(self, event):
+        pass
+
+    def treeCollapsed(self, event):
+        pass
 
     def _current(self):
         """(document, state answer, signed-in user) for whatever is in front of the panel."""
