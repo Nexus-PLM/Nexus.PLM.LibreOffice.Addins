@@ -64,6 +64,19 @@ def flatten(roots):
     return out
 
 
+def holds_anything(node):
+    """Whether a folder node should offer a handle to open.
+
+    A folder with no sub-folders can still hold documents, and until this was asked the tree drew
+    those as leaves - so the counts were visible and there was no way to see what they counted.
+    The count is the server's own, from the same answer that built the tree.
+    """
+    if node.get("children"):
+        return True
+    folder = node.get("folder") or {}
+    return (folder.get("object_count") or 0) > 0
+
+
 def item_label(item):
     """One item's line under its folder: the part number, and its revision when it has one."""
     part = (item.get("part_number") or "").strip() or "(no part number)"
