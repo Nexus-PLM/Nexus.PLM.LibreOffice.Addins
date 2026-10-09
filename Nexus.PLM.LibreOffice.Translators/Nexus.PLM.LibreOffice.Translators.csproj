@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ExcludeAssets="runtime": the contract DLL must NEVER ride into the publish output.
+         Deployed inside Translators\libreoffice\ it would split interface identity in the
+         server's plugin load context and the folder would silently contribute nothing. -->
+    <PackageReference Include="Nexus.PLM.Addin.Sdk.Translators" Version="0.1.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>
