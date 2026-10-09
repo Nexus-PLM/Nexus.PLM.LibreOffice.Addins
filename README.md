@@ -77,6 +77,12 @@ server-side to discover what fields a template has; the add-in uses the same rul
 a value written into an open document and the same value written into a closed one are the same
 value.
 
+A second server-side piece, **`Nexus.PLM.LibreOffice.Translators`**, carries the odt-input
+conversions (`librewriter_to_pdf`, `odt_to_docx`) the Translation server loads from
+`Translators\libreoffice\`. Ownership follows the input format: docx-input conversions live in
+the Office add-ins repo even though both drive the same headless soffice. A `v*` tag attaches
+`Nexus.PLM.LibreOffice.Translators.zip` to the GitHub release for deployment.
+
 ## Installing
 
 Download `NexusPLM.oxt` from a [release](../../releases) and install it:
