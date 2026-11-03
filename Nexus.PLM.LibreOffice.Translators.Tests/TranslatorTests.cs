@@ -11,6 +11,9 @@ public class LibreWriterToPdfContractTests : TranslatorContractTests<LibreWriter
 /// <summary>See <see cref="LibreWriterToPdfContractTests"/>.</summary>
 public class OdtToDocxContractTests : TranslatorContractTests<OdtToDocxTranslator> { }
 
+/// <summary>See <see cref="LibreWriterToPdfContractTests"/>.</summary>
+public class OdtToTxtContractTests : TranslatorContractTests<OdtToTxtTranslator> { }
+
 /// <summary>Repo-level rules across the translators.</summary>
 public class LibreOfficeTranslatorSuiteTests
 {
@@ -18,6 +21,7 @@ public class LibreOfficeTranslatorSuiteTests
     [
         new LibreWriterToPdfTranslator(),
         new OdtToDocxTranslator(),
+        new OdtToTxtTranslator(),
     ];
 
     /// <summary>The server's registry is first-wins on keys AND MIME pairs.</summary>
@@ -36,10 +40,19 @@ public class LibreOfficeTranslatorSuiteTests
 
     /// <summary>The frozen keys workflow nodes reference.</summary>
     [Fact]
-    public void CarriesTheTwoFrozenKeys() =>
+    public void CarriesTheFrozenKeys() =>
         Assert.Equal(
-            ["librewriter_to_pdf", "odt_to_docx"],
+            ["librewriter_to_pdf", "odt_to_docx", "odt_to_txt"],
             All.Select(t => t.Key).OrderBy(k => k).ToArray());
+
+    /// <summary>The new translator must declare the plain-text pair and extension.</summary>
+    [Fact]
+    public void OdtToTxt_DeclaresPlainTextOutput()
+    {
+        var t = new OdtToTxtTranslator();
+        Assert.Equal("text/plain", t.OutputMimeType);
+        Assert.Equal(".txt", t.OutputFileExtension);
+    }
 
     /// <summary>A missing soffice must fail with a message naming LIBREOFFICE_CMD.</summary>
     [Fact]

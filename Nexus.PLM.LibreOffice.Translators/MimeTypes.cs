@@ -14,4 +14,7 @@ public static class MimeTypes
 
     /// <summary>PDF.</summary>
     public const string Pdf = "application/pdf";
+
+    /// <summary>Plain text.</summary>
+    public const string Txt = "text/plain";
 }
